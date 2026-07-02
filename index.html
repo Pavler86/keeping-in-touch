@@ -825,7 +825,8 @@
 
   let contacts = [];
   let loaded = false;
-  let activeFilter = 'due';
+  let activeFilter = 'due'; // 'due' | 'all' | 'none' | 'cad-<days>'
+  let platformFilter = 'all'; // 'all' | platform key (moved into the sort bar)
   let sortMode = 'urgency'; // 'urgency' | 'name' | 'recent'
   let searchQuery = '';
   let editingContact = null;
@@ -1363,6 +1364,28 @@
     return d.innerHTML;
   }
 
+  // Group an already-sorted list into cadence sections (Weekly, Biweekly,
+  // Monthly, …), ordered shortest cadence first with No-reminder last. The sort
+  // order chosen in the sort bar is preserved within each section.
+  function renderCadenceSections(list) {
+    const buckets = new Map();
+    list.forEach(c => {
+      const key = c.cadenceDays || 0; // 0 == no reminder
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push(c);
+    });
+    const keys = Array.from(buckets.keys()).sort((a, b) => {
+      if (a === 0) return 1;   // no-reminder bucket sinks to the bottom
+      if (b === 0) return -1;
+      return a - b;            // shorter cadence first
+    });
+    return keys.map(k => {
+      const label = k === 0 ? 'No reminder' : cadenceRule(k).label;
+      const cards = buckets.get(k).map(renderCard).join('');
+      return `<div class="section-label"><span>${escapeHtml(label)}</span><span class="line"></span></div>${cards}`;
+    }).join('');
+  }
+
   function renderCard(c) {
     const status = getStatus(c);
     const since = daysSince(c.lastContacted);
@@ -1435,12 +1458,16 @@
 
     const query = searchQuery.trim().toLowerCase();
     let filtered = contacts.filter(c => {
-      // An active search looks across everyone, ignoring the DUE/platform chip
-      // so results aren't hidden by whichever filter happens to be selected.
+      // An active search looks across everyone, ignoring the cadence chip so
+      // results aren't hidden by whichever filter happens to be selected.
       if (query) return c.name.toLowerCase().includes(query);
+      // Platform filter (from the sort bar) applies alongside the cadence chip.
+      if (platformFilter !== 'all' && c.platform !== platformFilter) return false;
       if (activeFilter === 'due') return getStatus(c) === 'overdue' || getStatus(c) === 'due';
       if (activeFilter === 'all') return true;
-      return c.platform === activeFilter;
+      if (activeFilter === 'none') return !c.cadenceDays;
+      if (activeFilter.indexOf('cad-') === 0) return c.cadenceDays === Number(activeFilter.slice(4));
+      return true;
     });
 
     if (sortMode === 'name') {
@@ -1469,9 +1496,33 @@
           <div class="big">Nobody here</div>
           <div class="small">Try a different filter or search term.</div>
         </div>`;
+    } else if (activeFilter === 'all' && !query) {
+      // The ALL view is grouped into cadence sections (Weekly, Monthly, …).
+      listHtml = renderCadenceSections(filtered);
     } else {
       listHtml = filtered.map(renderCard).join('');
     }
+
+    // Top chips mirror the cadence groups actually present (same grouping the
+    // calendar export uses), plus DUE / ALL and a No-reminder bucket if needed.
+    const presentDays = Array.from(new Set(contacts.filter(c => c.cadenceDays).map(c => c.cadenceDays))).sort((a, b) => a - b);
+    const noneCount = contacts.filter(c => !c.cadenceDays).length;
+    const cadenceChipsHtml = [
+      `<div class="chip ${activeFilter === 'due' ? 'active' : ''}" onclick="window.__setFilter('due')">DUE</div>`,
+      `<div class="chip ${activeFilter === 'all' ? 'active' : ''}" onclick="window.__setFilter('all')">ALL (${contacts.length})</div>`,
+      ...presentDays.map(d => {
+        const key = cadenceFilterKey(d);
+        const count = contacts.filter(c => c.cadenceDays === d).length;
+        return `<div class="chip ${activeFilter === key ? 'active' : ''}" onclick="window.__setFilter('${key}')">${escapeHtml(cadenceRule(d).label.toUpperCase())} (${count})</div>`;
+      }),
+      ...(noneCount > 0 ? [`<div class="chip ${activeFilter === 'none' ? 'active' : ''}" onclick="window.__setFilter('none')">NO REMINDER (${noneCount})</div>`] : [])
+    ].join('');
+
+    // Platform picker (moved out of the top row) lives in the sort bar.
+    const platformOptionsHtml = ['all', ...Object.keys(PLATFORMS)].map(k => {
+      const label = k === 'all' ? 'All platforms' : PLATFORMS[k].label;
+      return `<option value="${k}" ${platformFilter === k ? 'selected' : ''}>${escapeHtml(label)}</option>`;
+    }).join('');
 
     root.innerHTML = `
       <div class="header">
@@ -1483,18 +1534,7 @@
           ${skippedContacts.length > 0 ? `<div class="import-btn" onclick="window.__appActions.openSkipped()" aria-label="Skipped contacts" style="position:relative;">⊘<span style="position:absolute;top:-5px;right:-5px;background:var(--accent-rose);color:#171B24;font-size:9px;font-weight:700;min-width:15px;height:15px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 3px;">${skippedContacts.length}</span></div>` : ''}
           <div class="import-btn" onclick="window.__appActions.openSettings()" aria-label="Settings">⚙</div>
         </div>
-        <div class="chips">
-          <div class="chip ${activeFilter === 'due' ? 'active' : ''}" onclick="window.__setFilter('due')">DUE</div>
-          <div class="chip ${activeFilter === 'all' ? 'active' : ''}" onclick="window.__setFilter('all')">ALL (${contacts.length})</div>
-          <div class="chip ${activeFilter === 'imessage' ? 'active' : ''}" onclick="window.__setFilter('imessage')">IMESSAGE</div>
-          <div class="chip ${activeFilter === 'instagram' ? 'active' : ''}" onclick="window.__setFilter('instagram')">INSTAGRAM</div>
-          <div class="chip ${activeFilter === 'whatsapp' ? 'active' : ''}" onclick="window.__setFilter('whatsapp')">WHATSAPP</div>
-          <div class="chip ${activeFilter === 'facebook' ? 'active' : ''}" onclick="window.__setFilter('facebook')">FACEBOOK</div>
-          <div class="chip ${activeFilter === 'messenger' ? 'active' : ''}" onclick="window.__setFilter('messenger')">MESSENGER</div>
-          <div class="chip ${activeFilter === 'telegram' ? 'active' : ''}" onclick="window.__setFilter('telegram')">TELEGRAM</div>
-          <div class="chip ${activeFilter === 'linkedin' ? 'active' : ''}" onclick="window.__setFilter('linkedin')">LINKEDIN</div>
-          <div class="chip ${activeFilter === 'discord' ? 'active' : ''}" onclick="window.__setFilter('discord')">DISCORD</div>
-        </div>
+        <div class="chips">${cadenceChipsHtml}</div>
       </div>
       ${contacts.length > 0 ? `
       <div class="sort-bar">
@@ -1503,6 +1543,7 @@
           <option value="urgency" ${sortMode === 'urgency' ? 'selected' : ''}>Urgency (soonest due)</option>
           <option value="name" ${sortMode === 'name' ? 'selected' : ''}>Name A–Z</option>
         </select>
+        <select class="sort-select" aria-label="Filter by platform" onchange="window.__setPlatform(this.value)">${platformOptionsHtml}</select>
       </div>` : ''}
       <div class="list">${listHtml}</div>
       <button class="fab" onclick="window.__appActions.openAddSheet()" aria-label="Add contact">+</button>
@@ -1572,6 +1613,22 @@
     }
   }
 
+  // Filter key for a cadence group, shared by the top chips and the calendar
+  // deep links so a reminder's "Open this group" URL selects the matching page.
+  function cadenceFilterKey(days) {
+    return 'cad-' + days;
+  }
+
+  // Monotonic sequence for ICS updates (see downloadIcs). Stored so it survives
+  // reloads; each export returns the next value and persists it.
+  function nextIcsSequence() {
+    let n = 0;
+    try { n = parseInt(localStorage.getItem('ics-sequence')) || 0; } catch (e) { n = 0; }
+    n += 1;
+    try { localStorage.setItem('ics-sequence', String(n)); } catch (e) { /* ignore */ }
+    return n;
+  }
+
   // Escape reserved characters in ICS text values (RFC 5545).
   function icsEscape(s) {
     return String(s)
@@ -1610,6 +1667,14 @@
     }
 
     const dtStamp = icsTimestamp(new Date());
+    // Bump a persisted sequence number each export. Calendars use a stable UID +
+    // rising SEQUENCE to UPDATE an existing event in place instead of creating a
+    // duplicate, so re-importing after adding/removing people just refreshes the
+    // existing recurring events.
+    const seq = nextIcsSequence();
+    // Base URL of this app (no hash/query) so each event can deep-link back to
+    // its own cadence page. Works once the app is hosted (e.g. GitHub Pages).
+    const appBase = location.origin + location.pathname;
     const lines = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
@@ -1625,18 +1690,23 @@
       const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm, 0);
       if (start < now) start.setDate(start.getDate() + 1);
 
+      const link = appBase + '#' + cadenceFilterKey(days);
       const summary = rule.label + ' check-ins (' + names.length + ')';
-      const desc = 'Reach out to: ' + names.join(', ');
+      const desc = 'Reach out to: ' + names.join(', ') +
+        '\n\nOpen this group in Keeping in Touch: ' + link;
 
       lines.push(
         'BEGIN:VEVENT',
-        'UID:keeping-in-touch-' + days + 'd-' + Date.now() + '-' + i + '@local',
+        // Stable, cadence-keyed UID (no timestamp) so re-imports update in place.
+        'UID:keeping-in-touch-' + days + 'd@keepingintouch',
+        'SEQUENCE:' + seq,
         'DTSTAMP:' + dtStamp,
         'DTSTART:' + icsTimestamp(start),
         'DURATION:PT10M',
         'RRULE:' + rule.rrule,
         'SUMMARY:' + icsEscape(summary),
         'DESCRIPTION:' + icsEscape(desc),
+        'URL:' + link,
         'BEGIN:VALARM',
         'TRIGGER:PT0M',
         'ACTION:DISPLAY',
@@ -1935,6 +2005,7 @@
   }
 
   window.__setFilter = function(f) { activeFilter = f; render(); };
+  window.__setPlatform = function(p) { platformFilter = p; render(); };
   window.__setSort = function(v) {
     sortMode = v;
     try { localStorage.setItem('sort-mode', v); } catch (e) { /* ignore */ }
@@ -1944,7 +2015,24 @@
   window.__draftName = function(v) { draft.name = v; };
   window.__draftCustom = function(v) { draft.customDays = v; };
 
-  loadContacts();
+  // Deep-link support: a calendar reminder's URL ends in e.g. #cad-30, which
+  // selects that cadence group when the app opens (or when the hash changes
+  // while it's already open).
+  function applyHashFilter() {
+    const h = (location.hash || '').replace(/^#/, '');
+    if (h === 'due' || h === 'all' || h === 'none' || /^cad-\d+$/.test(h)) {
+      activeFilter = h;
+      viewMode = 'list';
+      return true;
+    }
+    return false;
+  }
+
+  window.addEventListener('hashchange', () => {
+    if (applyHashFilter()) render();
+  });
+
+  loadContacts().then(applyHashFilter).then(() => { if (loaded) render(); });
 })();
 </script>
 
