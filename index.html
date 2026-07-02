@@ -771,8 +771,8 @@
       title: 'Instagram',
       steps: [
         'Accounts Center → Your information and permissions → Download your information.',
-        'Select JSON format (not HTML — JSON is required for this importer to read it).',
-        'Look inside the ZIP for connections/followers_and_following/following.json or followers_1.json.',
+        'Either JSON or HTML format works here — pick whichever you already have.',
+        'Inside the ZIP, open connections/followers_and_following/ and grab followers_1 or following (the .json or .html file).',
         'Upload that file below. Note: you\'ll get usernames, not real names.'
       ]
     },
@@ -1107,6 +1107,37 @@
     return Array.from(results);
   }
 
+  // Instagram (and similar Meta) exports also come as HTML, where each person is
+  // an <a> link to their profile. Pull the username from the profile URL, falling
+  // back to the link text. Non-profile links (posts, explore, help, etc.) are skipped.
+  function parseHtml(text) {
+    const SKIP = new Set([
+      'p', 'explore', 'reel', 'reels', 'stories', 'accounts', 'about',
+      'directory', 'help', 'legal', 'privacy', 'instagram', ''
+    ]);
+    const names = new Set();
+    let doc;
+    try {
+      doc = new DOMParser().parseFromString(text, 'text/html');
+    } catch (e) {
+      return [];
+    }
+    doc.querySelectorAll('a[href]').forEach(a => {
+      const href = a.getAttribute('href') || '';
+      const linkText = (a.textContent || '').trim();
+      let uname = '';
+      const m = href.match(/(?:instagram|facebook|threads)\.[a-z.]+\/([^\/?#]+)/i);
+      if (m && m[1] && !SKIP.has(m[1].toLowerCase())) {
+        uname = decodeURIComponent(m[1]);
+      } else if (linkText && !/^https?:\/\//i.test(linkText)) {
+        uname = linkText;
+      }
+      uname = uname.trim().replace(/^@/, '');
+      if (uname && !SKIP.has(uname.toLowerCase())) names.add(uname);
+    });
+    return Array.from(names);
+  }
+
   function handleFileImport(fileInput) {
     const file = fileInput.files[0];
     if (!file) return;
@@ -1117,6 +1148,8 @@
       const trimmed = text.trim();
       if (/BEGIN:VCARD/i.test(text)) {
         names = parseVCard(text);
+      } else if (/<!DOCTYPE html|<html[\s>]|<a\s[^>]*href=/i.test(text)) {
+        names = parseHtml(text);
       } else if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
         names = parseJson(text);
       } else if (text.includes(',')) {
@@ -1632,13 +1665,13 @@
         </div>
         <div class="import-help" style="padding-bottom: 10px;">
           <div class="big">Bring in your real contacts</div>
-          <div class="small">Tap a platform below for export steps, then upload the file you get. Supports .vcf, .csv, .txt, and .json. Names go into a quick swipe feed — assign platform + cadence per person, or skip anyone you don't want tracked.</div>
+          <div class="small">Tap a platform below for export steps, then upload the file you get. Supports .vcf, .csv, .txt, .json, and .html. Names go into a quick swipe feed — assign platform + cadence per person, or skip anyone you don't want tracked.</div>
         </div>
         <div class="guide-list">${guideItems}</div>
         <div style="text-align:center; padding-bottom: 40px;">
           <label class="file-label">
             <span class="file-label-icon">⇪</span> Choose file to upload
-            <input type="file" accept=".vcf,.csv,.txt,.json" style="display:none" onchange="window.__appActions.handleFileImport(this)" />
+            <input type="file" accept=".vcf,.csv,.txt,.json,.html,.htm" style="display:none" onchange="window.__appActions.handleFileImport(this)" />
           </label>
           ${skippedContacts.length > 0 ? `<div style="margin-top:18px;"><button class="triage-back" onclick="window.__appActions.openSkipped()">View ${skippedContacts.length} skipped contact${skippedContacts.length === 1 ? '' : 's'} ›</button></div>` : ''}
         </div>
