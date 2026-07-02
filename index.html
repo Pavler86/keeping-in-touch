@@ -80,6 +80,27 @@
     font-family: 'Inter', sans-serif;
   }
 
+  #app-root .header-count-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  #app-root .sort-select {
+    flex-shrink: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.03em;
+    padding: 7px 10px;
+    cursor: pointer;
+  }
+  #app-root .sort-select:focus { outline: none; border-color: var(--accent-amber); }
+
   #app-root .search-row {
     margin-top: 14px;
     display: flex;
@@ -797,6 +818,7 @@
   let contacts = [];
   let loaded = false;
   let activeFilter = 'due';
+  let sortMode = 'urgency'; // 'urgency' | 'name' | 'recent'
   let searchQuery = '';
   let editingContact = null;
   let sheetOpen = false;
@@ -844,6 +866,12 @@
     try {
       const t = localStorage.getItem('reminder-time');
       if (t) reminderTime = t;
+    } catch (e) {
+      // keep default
+    }
+    try {
+      const s = localStorage.getItem('sort-mode');
+      if (s) sortMode = s;
     } catch (e) {
       // keep default
     }
@@ -1327,13 +1355,20 @@
       return c.platform === activeFilter;
     });
 
-    filtered.sort((a, b) => {
-      const rank = { overdue: 0, due: 1, ok: 2, none: 3 };
-      const sa = getStatus(a), sb = getStatus(b);
-      if (rank[sa] !== rank[sb]) return rank[sa] - rank[sb];
-      const da = daysSince(a.lastContacted), db = daysSince(b.lastContacted);
-      return db - da;
-    });
+    if (sortMode === 'name') {
+      filtered.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+    } else if (sortMode === 'recent') {
+      filtered.sort((a, b) => daysSince(b.lastContacted) - daysSince(a.lastContacted));
+    } else {
+      // urgency: overdue → due → ok → none, then longest since last contact
+      filtered.sort((a, b) => {
+        const rank = { overdue: 0, due: 1, ok: 2, none: 3 };
+        const sa = getStatus(a), sb = getStatus(b);
+        if (rank[sa] !== rank[sb]) return rank[sa] - rank[sb];
+        const da = daysSince(a.lastContacted), db = daysSince(b.lastContacted);
+        return db - da;
+      });
+    }
 
     const dueCount = contacts.filter(c => { const s = getStatus(c); return s === 'overdue' || s === 'due'; }).length;
 
@@ -1357,7 +1392,14 @@
     root.innerHTML = `
       <div class="header">
         <div class="header-title">Keeping in touch</div>
-        <div class="header-count">${dueCount} <span class="sub">due to reach out to</span></div>
+        <div class="header-count-row">
+          <div class="header-count">${dueCount} <span class="sub">due to reach out to</span></div>
+          <select class="sort-select" aria-label="Sort contacts" onchange="window.__setSort(this.value)">
+            <option value="urgency" ${sortMode === 'urgency' ? 'selected' : ''}>↓ Urgency</option>
+            <option value="name" ${sortMode === 'name' ? 'selected' : ''}>↓ Name A–Z</option>
+            <option value="recent" ${sortMode === 'recent' ? 'selected' : ''}>↓ Oldest contact</option>
+          </select>
+        </div>
         <div class="search-row">
           <input class="search-input" type="text" placeholder="Search contacts…" value="${escapeHtml(searchQuery)}" oninput="window.__searchInput(this.value)" />
           <div class="import-btn" onclick="window.__appActions.openImport()" aria-label="Import contacts">⇪</div>
@@ -1794,6 +1836,11 @@
   }
 
   window.__setFilter = function(f) { activeFilter = f; render(); };
+  window.__setSort = function(v) {
+    sortMode = v;
+    try { localStorage.setItem('sort-mode', v); } catch (e) { /* ignore */ }
+    render();
+  };
   window.__searchInput = function(v) { searchQuery = v; render(); };
   window.__draftName = function(v) { draft.name = v; };
   window.__draftCustom = function(v) { draft.customDays = v; };
