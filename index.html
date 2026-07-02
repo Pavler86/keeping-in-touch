@@ -1920,17 +1920,19 @@
           <div class="triage-progress mono">IMPORT CONTACTS</div>
           <div class="triage-close" onclick="window.__appActions.closeImport()">Close</div>
         </div>
-        <div class="import-help" style="padding-bottom: 10px;">
-          <div class="big">Bring in your real contacts</div>
-          <div class="small">Tap a platform below for export steps, then upload the file you get. Supports .vcf, .csv, .txt, .json, and .html. Names go into a quick swipe feed — assign platform + cadence per person, or skip anyone you don't want tracked. Where the export includes it, you'll also see each person's profile photo (from phone-contact vCards) or a tap-to-open profile link (Instagram, Facebook, LinkedIn) so you can recognize who's who without leaving the app.</div>
-        </div>
-        <div class="guide-list">${guideItems}</div>
-        <div style="text-align:center; padding-bottom: 40px;">
-          <label class="file-label">
-            <span class="file-label-icon">⇪</span> Choose file to upload
-            <input type="file" accept=".vcf,.csv,.txt,.json,.html,.htm" style="display:none" onchange="window.__appActions.handleFileImport(this)" />
-          </label>
-          ${skippedContacts.length > 0 ? `<div style="margin-top:18px;"><button class="triage-back" onclick="window.__appActions.openSkipped()">View ${skippedContacts.length} skipped contact${skippedContacts.length === 1 ? '' : 's'} ›</button></div>` : ''}
+        <div style="flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch;">
+          <div class="import-help" style="padding-bottom: 10px;">
+            <div class="big">Bring in your real contacts</div>
+            <div class="small">Tap a platform below for export steps, then upload the file you get. Supports .vcf, .csv, .txt, .json, and .html. Names go into a quick swipe feed — assign platform + cadence per person, or skip anyone you don't want tracked. Where the export includes it, you'll also see each person's profile photo (from phone-contact vCards) or a tap-to-open profile link (Instagram, Facebook, LinkedIn) so you can recognize who's who without leaving the app.</div>
+          </div>
+          <div class="guide-list">${guideItems}</div>
+          <div style="text-align:center; padding-bottom: 40px;">
+            <label class="file-label">
+              <span class="file-label-icon">⇪</span> Choose file to upload
+              <input type="file" accept=".vcf,.csv,.txt,.json,.html,.htm" style="display:none" onchange="window.__appActions.handleFileImport(this)" />
+            </label>
+            ${skippedContacts.length > 0 ? `<div style="margin-top:18px;"><button class="triage-back" onclick="window.__appActions.openSkipped()">View ${skippedContacts.length} skipped contact${skippedContacts.length === 1 ? '' : 's'} ›</button></div>` : ''}
+          </div>
         </div>
       </div>
     `;
