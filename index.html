@@ -872,6 +872,12 @@
       skippedContacts = [];
     }
     try {
+      const raw = localStorage.getItem('triage-draft');
+      if (raw) triageDraft = JSON.parse(raw);
+    } catch (e) {
+      // keep default
+    }
+    try {
       const t = localStorage.getItem('reminder-time');
       if (t) reminderTime = t;
     } catch (e) {
@@ -898,6 +904,14 @@
   async function saveTriageHistory() {
     try {
       localStorage.setItem('triage-history', JSON.stringify(triageHistory));
+    } catch (e) {
+      console.error('Save failed', e);
+    }
+  }
+
+  async function saveTriageDraft() {
+    try {
+      localStorage.setItem('triage-draft', JSON.stringify(triageDraft));
     } catch (e) {
       console.error('Save failed', e);
     }
@@ -1201,6 +1215,7 @@
 
   function triageSetField(field, value) {
     triageDraft[field] = value;
+    saveTriageDraft();
     render();
   }
 
@@ -1247,7 +1262,8 @@
   function triageNext() {
     pendingQueue.shift();
     savePendingQueue();
-    triageDraft = { platform: 'imessage', cadenceKey: '30' };
+    // Keep the current platform/cadence selection for the next person — most
+    // imports are all the same platform. It only changes when the user changes it.
     render();
   }
 
@@ -1266,6 +1282,7 @@
     }
     pendingQueue.unshift(entry.item);
     triageDraft = entry.draft ? { ...entry.draft } : { platform: 'imessage', cadenceKey: '30' };
+    saveTriageDraft();
     saveTriageHistory();
     savePendingQueue();
     render();
@@ -1770,7 +1787,7 @@
             <div class="triage-field-label">Reminder cadence</div>
             <div class="triage-chip-grid">${cadenceChips}</div>
             ${triageDraft.cadenceKey === 'custom' ? `
-              <input class="text-field" type="number" min="1" placeholder="Days between reminders" oninput="window.__triageCustom(this.value)" />
+              <input class="text-field" type="number" min="1" value="${escapeHtml(triageDraft.customDays || '')}" placeholder="Days between reminders" oninput="window.__triageCustom(this.value)" />
             ` : ''}
           </div>
         </div>
@@ -1782,7 +1799,7 @@
     `;
   }
 
-  window.__triageCustom = function(v) { triageDraft.customDays = v; };
+  window.__triageCustom = function(v) { triageDraft.customDays = v; saveTriageDraft(); };
   window.__triageName = function(v) { if (pendingQueue[0]) { pendingQueue[0].name = v; savePendingQueue(); } };
 
   function attachSwipeHandlers() {
