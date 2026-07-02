@@ -1069,18 +1069,28 @@
       } else {
         names = parsePlainText(text);
       }
-      const existingLower = new Set(contacts.map(c => c.name.toLowerCase()));
-      const fresh = names
-        .map(n => n.trim())
-        .filter(n => n.length > 0 && !existingLower.has(n.toLowerCase()));
-      const seen = new Set();
-      const deduped = fresh.filter(n => {
-        const k = n.toLowerCase();
-        if (seen.has(k)) return false;
-        seen.add(k);
-        return true;
+      // Build a lookup of everyone already in the contact list. Match on both the
+      // current name and the original imported name, so a contact renamed during
+      // triage still counts as "already added" when the same file is re-uploaded.
+      const existingLower = new Set();
+      contacts.forEach(c => {
+        if (c.name) existingLower.add(c.name.trim().toLowerCase());
+        if (c.importName) existingLower.add(c.importName.trim().toLowerCase());
       });
-      pendingQueue = deduped.map(n => ({ name: n }));
+
+      const trimmedNames = names.map(n => n.trim()).filter(n => n.length > 0);
+      let alreadyAddedCount = 0;
+      const seen = new Set();
+      const deduped = [];
+      trimmedNames.forEach(n => {
+        const k = n.toLowerCase();
+        if (existingLower.has(k)) { alreadyAddedCount++; return; } // already on the list — skip
+        if (seen.has(k)) return; // duplicate within this same file
+        seen.add(k);
+        deduped.push(n);
+      });
+
+      pendingQueue = deduped.map(n => ({ name: n, importName: n }));
       triageIndex = 0;
       addedCount = 0;
       triageHistory = [];
@@ -1088,6 +1098,15 @@
       savePendingQueue();
       viewMode = pendingQueue.length > 0 ? 'triage' : 'list';
       render();
+
+      if (pendingQueue.length === 0) {
+        alert(alreadyAddedCount > 0
+          ? 'Everyone in that file is already in your contact list — nothing new to review.'
+          : 'No new contacts found in that file.');
+      } else if (alreadyAddedCount > 0) {
+        alert('Skipped ' + alreadyAddedCount + ' name' + (alreadyAddedCount === 1 ? '' : 's') +
+          ' already in your list. ' + pendingQueue.length + ' new to review.');
+      }
     };
     reader.readAsText(file);
   }
@@ -1111,6 +1130,7 @@
     contacts.push({
       id: id,
       name: item.name,
+      importName: item.importName || item.name,
       platform: triageDraft.platform,
       cadenceDays: cadenceDays,
       lastContacted: Date.now()
@@ -1185,7 +1205,7 @@
     if (!s) return;
     skippedContacts.splice(i, 1);
     saveSkipped();
-    pendingQueue.push({ name: s.name });
+    pendingQueue.push({ name: s.name, importName: s.name });
     savePendingQueue();
     viewMode = 'triage';
     render();
@@ -1193,7 +1213,7 @@
 
   function skippedReAddAll() {
     if (skippedContacts.length === 0) return;
-    skippedContacts.forEach(s => pendingQueue.push({ name: s.name }));
+    skippedContacts.forEach(s => pendingQueue.push({ name: s.name, importName: s.name }));
     skippedContacts = [];
     saveSkipped();
     savePendingQueue();
