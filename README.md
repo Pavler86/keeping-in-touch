@@ -1,6 +1,6 @@
 # Keeping in Touch
 
-A personal relationship-maintenance tool — a "digital rolodex" that tracks how long it's been since you last contacted someone and reminds you when it's time to reach out.
+A personal relationship-maintenance tool that tracks how long it's been since you last contacted someone and reminds you when it's time to reach out.
 
 ## Features
 - Set a reminder cadence per contact: 1 week, 2 weeks, monthly, bimonthly, annually, custom, or none
