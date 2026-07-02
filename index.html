@@ -1,0 +1,1530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>Keeping in Touch</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  #app-root {
+    --bg: #171B24;
+    --surface: #1F2430;
+    --surface-raised: #262C3B;
+    --surface-hover: #2C3345;
+    --text-primary: #EDEAE1;
+    --text-secondary: #9BA3B5;
+    --text-tertiary: #656D80;
+    --border: #323A4C;
+    --accent-amber: #E8A33D;
+    --accent-amber-dim: #4A3D24;
+    --accent-teal: #4FA9A2;
+    --accent-teal-dim: #223834;
+    --accent-rose: #D9727B;
+    --accent-rose-dim: #402A2E;
+    --imessage: #6C8FE0;
+    --instagram: #D65D8C;
+    --whatsapp: #4CAE71;
+    --facebook: #5C7CBB;
+    --messenger: #B26FC9;
+    --telegram: #4FAAD9;
+    --linkedin: #4A96C7;
+    --discord: #7D7FE8;
+    --other: #8A8FA0;
+
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text-primary);
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+    position: relative;
+    padding-bottom: 90px;
+  }
+
+  #app-root .mono { font-family: 'Space Mono', monospace; }
+
+  #app-root .header {
+    padding: 20px 18px 14px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 10;
+  }
+
+  #app-root .header-title {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin-bottom: 4px;
+  }
+
+  #app-root .header-count {
+    font-size: 26px;
+    font-weight: 700;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  #app-root .header-count span.sub {
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--text-secondary);
+    font-family: 'Inter', sans-serif;
+  }
+
+  #app-root .search-row {
+    margin-top: 14px;
+    display: flex;
+    gap: 8px;
+  }
+
+  #app-root .search-input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+  }
+  #app-root .search-input::placeholder { color: var(--text-tertiary); }
+  #app-root .search-input:focus { outline: none; border-color: var(--accent-amber); }
+
+  #app-root .chips {
+    display: flex;
+    gap: 6px;
+    margin-top: 12px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+  #app-root .chips::-webkit-scrollbar { display: none; }
+
+  #app-root .chip {
+    flex-shrink: 0;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.03em;
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  #app-root .chip.active {
+    background: var(--accent-amber);
+    color: #171B24;
+    border-color: var(--accent-amber);
+    font-weight: 700;
+  }
+
+  #app-root .list {
+    padding: 14px 18px 0;
+  }
+
+  #app-root .section-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin: 18px 0 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  #app-root .section-label .line {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  #app-root .card {
+    display: flex;
+    align-items: center;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 8px;
+    overflow: hidden;
+    transition: background 0.15s;
+  }
+  #app-root .card:active { background: var(--surface-hover); }
+
+  #app-root .card-tab {
+    width: 5px;
+    align-self: stretch;
+    flex-shrink: 0;
+  }
+
+  #app-root .card-body {
+    flex: 1;
+    padding: 12px 10px 12px 12px;
+    min-width: 0;
+    cursor: pointer;
+  }
+
+  #app-root .card-name {
+    font-size: 15px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #app-root .card-meta {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 3px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  #app-root .platform-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  #app-root .card-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-right: 10px;
+    flex-shrink: 0;
+  }
+
+  #app-root .counter {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+    min-width: 54px;
+    padding: 5px 6px;
+    border-radius: 8px;
+    line-height: 1.2;
+  }
+  #app-root .counter .num { font-size: 15px; display: block; }
+  #app-root .counter .lbl { font-size: 8px; letter-spacing: 0.05em; text-transform: uppercase; opacity: 0.85; }
+
+  #app-root .counter.ok { background: var(--accent-teal-dim); color: var(--accent-teal); }
+  #app-root .counter.due { background: var(--accent-amber-dim); color: var(--accent-amber); }
+  #app-root .counter.overdue { background: var(--accent-rose-dim); color: var(--accent-rose); }
+  #app-root .counter.none { background: var(--surface-raised); color: var(--text-tertiary); }
+
+  #app-root .log-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+    flex-shrink: 0;
+    transition: all 0.15s;
+  }
+  #app-root .log-btn:active {
+    background: var(--accent-teal);
+    color: #171B24;
+    border-color: var(--accent-teal);
+    transform: scale(0.92);
+  }
+
+  #app-root .empty-state {
+    text-align: center;
+    padding: 60px 24px;
+    color: var(--text-tertiary);
+  }
+  #app-root .empty-state .big { font-size: 15px; color: var(--text-secondary); margin-bottom: 6px; }
+  #app-root .empty-state .small { font-size: 13px; }
+
+  #app-root .fab {
+    position: fixed;
+    bottom: 24px;
+    right: calc(50% - 240px + 20px);
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--accent-amber);
+    color: #171B24;
+    font-size: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    z-index: 20;
+    transition: transform 0.15s;
+  }
+  #app-root .fab:active { transform: scale(0.92); }
+  @media (max-width: 480px) {
+    #app-root .fab { right: 20px; }
+  }
+
+  #app-root .sheet-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,12,16,0.6);
+    z-index: 30;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  #app-root .sheet {
+    width: 100%;
+    max-width: 480px;
+    background: var(--surface);
+    border-radius: 20px 20px 0 0;
+    padding: 20px 20px 28px;
+    max-height: 88vh;
+    overflow-y: auto;
+    animation: slideUp 0.2s ease-out;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(16px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  #app-root .sheet-handle {
+    width: 36px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 0 auto 18px;
+  }
+
+  #app-root .sheet-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 18px;
+  }
+
+  #app-root .field-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin-bottom: 8px;
+    margin-top: 18px;
+  }
+
+  #app-root .text-field {
+    width: 100%;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--text-primary);
+    font-size: 15px;
+    font-family: 'Inter', sans-serif;
+  }
+  #app-root .text-field:focus { outline: none; border-color: var(--accent-amber); }
+
+  #app-root .option-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  #app-root .option-btn {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    padding: 9px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface-raised);
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+  #app-root .option-btn.active {
+    background: var(--accent-amber);
+    color: #171B24;
+    border-color: var(--accent-amber);
+    font-weight: 700;
+  }
+
+  #app-root .platform-btn {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  #app-root .sheet-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 26px;
+  }
+
+  #app-root .btn-primary {
+    flex: 1;
+    background: var(--accent-amber);
+    color: #171B24;
+    border: none;
+    border-radius: 10px;
+    padding: 13px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  #app-root .btn-secondary {
+    background: var(--surface-raised);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 13px 16px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  #app-root .btn-danger {
+    background: transparent;
+    color: var(--accent-rose);
+    border: 1px solid var(--accent-rose-dim);
+    border-radius: 10px;
+    padding: 13px 16px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  #app-root .loading-msg {
+    text-align: center;
+    padding: 60px 24px;
+    color: var(--text-tertiary);
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+  }
+
+  #app-root .import-btn {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    cursor: pointer;
+  }
+
+  #app-root .triage-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  #app-root .triage-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 18px 10px;
+  }
+
+  #app-root .triage-progress {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  #app-root .triage-close {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--text-tertiary);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 12px;
+    cursor: pointer;
+  }
+
+  #app-root .triage-stage {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  #app-root .triage-card {
+    width: 100%;
+    max-width: 340px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px 22px;
+    touch-action: none;
+    cursor: grab;
+    position: relative;
+    user-select: none;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+  }
+
+  #app-root .triage-hint {
+    position: absolute;
+    top: 20px;
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 5px 12px;
+    border-radius: 6px;
+    opacity: 0;
+    transform: rotate(-8deg);
+  }
+  #app-root .triage-hint.skip { left: 20px; color: var(--accent-rose); border: 2px solid var(--accent-rose); }
+  #app-root .triage-hint.add { right: 20px; color: var(--accent-teal); border: 2px solid var(--accent-teal); transform: rotate(8deg); }
+
+  #app-root .triage-name {
+    font-size: 24px;
+    font-weight: 700;
+    text-align: center;
+    margin: 10px 0 22px;
+    word-break: break-word;
+  }
+
+  #app-root .triage-field-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin-bottom: 8px;
+    text-align: center;
+  }
+
+  #app-root .triage-chip-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    margin-bottom: 18px;
+  }
+
+  #app-root .triage-actions {
+    padding: 12px 24px 28px;
+    display: flex;
+    gap: 10px;
+  }
+
+  #app-root .triage-skip-btn {
+    flex: 1;
+    background: transparent;
+    color: var(--accent-rose);
+    border: 1px solid var(--accent-rose-dim);
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  #app-root .triage-add-btn {
+    flex: 2;
+    background: var(--accent-teal);
+    color: #171B24;
+    border: none;
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  #app-root .triage-done {
+    text-align: center;
+    padding: 80px 30px;
+  }
+  #app-root .triage-done .big-num {
+    font-size: 44px;
+    font-weight: 700;
+    color: var(--accent-teal);
+    font-family: 'Space Mono', monospace;
+  }
+  #app-root .triage-done .msg {
+    color: var(--text-secondary);
+    margin: 10px 0 24px;
+    font-size: 14px;
+  }
+
+  #app-root .import-help {
+    padding: 60px 30px;
+    text-align: center;
+  }
+  #app-root .import-help .big { font-size: 16px; font-weight: 600; margin-bottom: 10px; }
+  #app-root .import-help .small { font-size: 13px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 22px; }
+  #app-root .import-help .file-label {
+    display: inline-block;
+    background: var(--accent-amber);
+    color: #171B24;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 13px 22px;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+
+  #app-root .guide-list {
+    padding: 0 20px 24px;
+  }
+
+  #app-root .guide-item {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 8px;
+    overflow: hidden;
+    background: var(--surface);
+  }
+
+  #app-root .guide-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 13px 14px;
+    cursor: pointer;
+  }
+
+  #app-root .guide-header .platform-dot { width: 8px; height: 8px; }
+
+  #app-root .guide-header .guide-title {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  #app-root .guide-header .guide-arrow {
+    color: var(--text-tertiary);
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    transition: transform 0.15s;
+  }
+  #app-root .guide-header .guide-arrow.open { transform: rotate(90deg); }
+
+  #app-root .guide-body {
+    padding: 0 16px 16px 32px;
+  }
+
+  #app-root .guide-body ol {
+    margin: 0;
+    padding-left: 18px;
+  }
+
+  #app-root .guide-body li {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 6px;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #171B24;
+  }
+</style>
+</head>
+<body>
+
+<div id="app-root">
+  <div id="main-view"></div>
+</div>
+
+<script>
+(function() {
+  const PLATFORMS = {
+    imessage: { label: 'iMessage', color: 'var(--imessage)' },
+    facebook: { label: 'Facebook', color: 'var(--facebook)' },
+    messenger: { label: 'Messenger', color: 'var(--messenger)' },
+    instagram: { label: 'Instagram', color: 'var(--instagram)' },
+    whatsapp: { label: 'WhatsApp', color: 'var(--whatsapp)' },
+    telegram: { label: 'Telegram', color: 'var(--telegram)' },
+    linkedin: { label: 'LinkedIn', color: 'var(--linkedin)' },
+    discord: { label: 'Discord', color: 'var(--discord)' },
+    other: { label: 'Other', color: 'var(--other)' }
+  };
+
+  const PLATFORM_GUIDES = {
+    imessage: {
+      title: 'iMessage',
+      steps: [
+        'iMessage uses your phone contacts directly — no separate export exists.',
+        'iPhone: Contacts app → select contacts (or Select All) → Share → Export vCard',
+        'Upload the resulting .vcf file below.'
+      ]
+    },
+    facebook: {
+      title: 'Facebook',
+      steps: [
+        'Go to Accounts Center → Your information and permissions → Download your information.',
+        'Choose your Facebook account, select "Some of your information," and pick Friends and Followers.',
+        'Choose JSON format. Takes minutes to a couple days depending on account size.',
+        'Upload the friends.json (or similar) file from the ZIP below.'
+      ]
+    },
+    messenger: {
+      title: 'Messenger',
+      steps: [
+        'Messenger contacts run through the same Meta Accounts Center as Facebook.',
+        'Accounts Center → Your information and permissions → Download your information → choose your account.',
+        'Select Contacts or Friends category, JSON format.',
+        'Upload the resulting JSON file below.'
+      ]
+    },
+    instagram: {
+      title: 'Instagram',
+      steps: [
+        'Accounts Center → Your information and permissions → Download your information.',
+        'Select JSON format (not HTML — JSON is required for this importer to read it).',
+        'Look inside the ZIP for connections/followers_and_following/following.json or followers_1.json.',
+        'Upload that file below. Note: you\'ll get usernames, not real names.'
+      ]
+    },
+    whatsapp: {
+      title: 'WhatsApp',
+      steps: [
+        'WhatsApp has no separate contacts export — it uses your phone contacts directly.',
+        'Use the same vCard export as iMessage (iPhone Contacts app → Export vCard).',
+        'Upload that .vcf file below.'
+      ]
+    },
+    telegram: {
+      title: 'Telegram',
+      steps: [
+        'Requires Telegram Desktop (not the phone app).',
+        'Settings → Advanced → Export Telegram Data.',
+        'Uncheck everything except "Contacts," choose JSON format, then export.',
+        'Upload the result.json file below.'
+      ]
+    },
+    linkedin: {
+      title: 'LinkedIn',
+      steps: [
+        'Settings & Privacy → Data privacy → Get a copy of your data.',
+        'Select "Connections" and request the archive.',
+        'You\'ll get an email with a Connections.csv file once it\'s ready.',
+        'Upload that CSV below.'
+      ]
+    },
+    discord: {
+      title: 'Discord',
+      steps: [
+        'User Settings → Data & Privacy → Request Data.',
+        'This includes your friends list. Can take up to 30 days for large accounts — request it and check back later.',
+        'You\'ll get a ZIP by email; open it and find the file containing your relationships/friends.',
+        'Upload that JSON file below.'
+      ]
+    }
+  };
+
+  const CADENCE_OPTIONS = [
+    { key: '7', label: '1 week', days: 7 },
+    { key: '14', label: '2 weeks', days: 14 },
+    { key: '30', label: 'Monthly', days: 30 },
+    { key: '60', label: 'Bimonthly', days: 60 },
+    { key: '365', label: 'Annually', days: 365 },
+    { key: 'custom', label: 'Custom', days: null },
+    { key: 'none', label: 'No reminder', days: null }
+  ];
+
+  let contacts = [];
+  let loaded = false;
+  let activeFilter = 'due';
+  let searchQuery = '';
+  let editingContact = null;
+  let sheetOpen = false;
+  let draft = { name: '', platform: 'imessage', cadenceKey: '30', customDays: '' };
+
+  let viewMode = 'list'; // 'list' | 'importHelp' | 'triage'
+  let pendingQueue = [];
+  let triageIndex = 0;
+  let triageDraft = { platform: 'imessage', cadenceKey: '30' };
+  let addedCount = 0;
+  let expandedGuide = null;
+  let settingsOpen = false;
+  let reminderTime = '19:00';
+
+  const root = document.getElementById('main-view');
+
+  async function loadContacts() {
+    try {
+      const raw = localStorage.getItem('contacts-data');
+      contacts = raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      contacts = [];
+    }
+    try {
+      const raw = localStorage.getItem('pending-queue');
+      pendingQueue = raw ? JSON.parse(raw) : [];
+      if (pendingQueue.length > 0) viewMode = 'triage';
+    } catch (e) {
+      pendingQueue = [];
+    }
+    try {
+      const t = localStorage.getItem('reminder-time');
+      if (t) reminderTime = t;
+    } catch (e) {
+      // keep default
+    }
+    loaded = true;
+    render();
+  }
+
+  async function savePendingQueue() {
+    try {
+      localStorage.setItem('pending-queue', JSON.stringify(pendingQueue));
+    } catch (e) {
+      console.error('Save failed', e);
+    }
+  }
+
+  async function saveContacts() {
+    try {
+      localStorage.setItem('contacts-data', JSON.stringify(contacts));
+    } catch (e) {
+      console.error('Save failed', e);
+    }
+  }
+
+  function daysSince(ts) {
+    return Math.floor((Date.now() - ts) / 86400000);
+  }
+
+  function getStatus(c) {
+    if (!c.cadenceDays) return 'none';
+    const since = daysSince(c.lastContacted);
+    const ratio = since / c.cadenceDays;
+    if (ratio >= 1) return 'overdue';
+    if (ratio >= 0.8) return 'due';
+    return 'ok';
+  }
+
+  function logContact(id) {
+    const c = contacts.find(x => x.id === id);
+    if (c) {
+      c.lastContacted = Date.now();
+      saveContacts();
+      render();
+    }
+  }
+
+  function openAddSheet() {
+    editingContact = null;
+    draft = { name: '', platform: 'imessage', cadenceKey: '30', customDays: '' };
+    sheetOpen = true;
+    render();
+  }
+
+  function openEditSheet(id) {
+    const c = contacts.find(x => x.id === id);
+    if (!c) return;
+    editingContact = c;
+    let cadenceKey = 'none';
+    if (c.cadenceDays) {
+      const match = CADENCE_OPTIONS.find(o => o.days === c.cadenceDays);
+      cadenceKey = match ? match.key : 'custom';
+    }
+    draft = {
+      name: c.name,
+      platform: c.platform,
+      cadenceKey: cadenceKey,
+      customDays: (cadenceKey === 'custom') ? String(c.cadenceDays) : ''
+    };
+    sheetOpen = true;
+    render();
+  }
+
+  function closeSheet() {
+    sheetOpen = false;
+    editingContact = null;
+    render();
+  }
+
+  function saveDraft() {
+    if (!draft.name.trim()) return;
+    let cadenceDays = null;
+    if (draft.cadenceKey === 'custom') {
+      cadenceDays = parseInt(draft.customDays) || null;
+    } else if (draft.cadenceKey !== 'none') {
+      const opt = CADENCE_OPTIONS.find(o => o.key === draft.cadenceKey);
+      cadenceDays = opt.days;
+    }
+
+    if (editingContact) {
+      editingContact.name = draft.name.trim();
+      editingContact.platform = draft.platform;
+      editingContact.cadenceDays = cadenceDays;
+    } else {
+      contacts.push({
+        id: 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+        name: draft.name.trim(),
+        platform: draft.platform,
+        cadenceDays: cadenceDays,
+        lastContacted: Date.now()
+      });
+    }
+    saveContacts();
+    closeSheet();
+  }
+
+  function deleteContact() {
+    if (!editingContact) return;
+    contacts = contacts.filter(c => c.id !== editingContact.id);
+    saveContacts();
+    closeSheet();
+  }
+
+  function setDraftField(field, value) {
+    draft[field] = value;
+    render();
+  }
+
+  // ---- Import & Triage ----
+
+  function openImport() {
+    viewMode = 'importHelp';
+    render();
+  }
+
+  function closeImport() {
+    viewMode = 'list';
+    render();
+  }
+
+  function parseVCard(text) {
+    const names = [];
+    const blocks = text.split(/BEGIN:VCARD/i).slice(1);
+    blocks.forEach(b => {
+      const match = b.match(/\nFN:(.+)/i) || b.match(/^FN:(.+)/im);
+      if (match) {
+        const n = match[1].trim();
+        if (n) names.push(n);
+      }
+    });
+    return names;
+  }
+
+  function parseCsv(text) {
+    let lines = text.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length === 0) return [];
+
+    // LinkedIn's export prepends a few "Notes:" lines before the real header row.
+    let headerIdx = lines.findIndex(l => /first name/i.test(l) && l.includes(','));
+    if (headerIdx === -1) headerIdx = 0;
+
+    const header = lines[headerIdx].split(',').map(h => h.replace(/"/g, '').trim().toLowerCase());
+    const firstIdx = header.indexOf('first name');
+    const lastIdx = header.indexOf('last name');
+    const nameIdx = header.indexOf('name');
+
+    const names = [];
+    for (let i = headerIdx + 1; i < lines.length; i++) {
+      const cols = lines[i].split(',').map(c => c.replace(/"/g, '').trim());
+      let full = '';
+      if (firstIdx !== -1) {
+        full = [cols[firstIdx], lastIdx !== -1 ? cols[lastIdx] : ''].filter(Boolean).join(' ');
+      } else if (nameIdx !== -1) {
+        full = cols[nameIdx];
+      } else {
+        full = cols[0];
+      }
+      full = full.trim();
+      if (full) names.push(full);
+    }
+    return names;
+  }
+
+  function parsePlainText(text) {
+    return text.split(/\r?\n/).map(l => l.trim()).filter(l => l);
+  }
+
+  function extractNamesFromJson(obj, results) {
+    const NAME_KEYS = ['username', 'global_name', 'value', 'name', 'display_name'];
+    if (Array.isArray(obj)) {
+      obj.forEach(item => extractNamesFromJson(item, results));
+    } else if (obj && typeof obj === 'object') {
+      for (const key of Object.keys(obj)) {
+        const val = obj[key];
+        if (NAME_KEYS.includes(key) && typeof val === 'string' && val.trim() && !/^https?:\/\//.test(val)) {
+          results.add(val.trim());
+        } else if (typeof val === 'object') {
+          extractNamesFromJson(val, results);
+        }
+      }
+    }
+    return results;
+  }
+
+  function parseJson(text) {
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      return [];
+    }
+    const results = new Set();
+    extractNamesFromJson(data, results);
+    return Array.from(results);
+  }
+
+  function handleFileImport(fileInput) {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const text = e.target.result;
+      let names = [];
+      const trimmed = text.trim();
+      if (/BEGIN:VCARD/i.test(text)) {
+        names = parseVCard(text);
+      } else if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        names = parseJson(text);
+      } else if (text.includes(',')) {
+        names = parseCsv(text);
+      } else {
+        names = parsePlainText(text);
+      }
+      const existingLower = new Set(contacts.map(c => c.name.toLowerCase()));
+      const fresh = names
+        .map(n => n.trim())
+        .filter(n => n.length > 0 && !existingLower.has(n.toLowerCase()));
+      const seen = new Set();
+      const deduped = fresh.filter(n => {
+        const k = n.toLowerCase();
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+      pendingQueue = deduped.map(n => ({ name: n }));
+      triageIndex = 0;
+      addedCount = 0;
+      savePendingQueue();
+      viewMode = pendingQueue.length > 0 ? 'triage' : 'list';
+      render();
+    };
+    reader.readAsText(file);
+  }
+
+  function triageSetField(field, value) {
+    triageDraft[field] = value;
+    render();
+  }
+
+  function triageAdd() {
+    const item = pendingQueue[triageIndex];
+    if (!item) return;
+    let cadenceDays = null;
+    if (triageDraft.cadenceKey === 'custom') {
+      cadenceDays = parseInt(triageDraft.customDays) || null;
+    } else if (triageDraft.cadenceKey !== 'none') {
+      const opt = CADENCE_OPTIONS.find(o => o.key === triageDraft.cadenceKey);
+      cadenceDays = opt.days;
+    }
+    contacts.push({
+      id: 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+      name: item.name,
+      platform: triageDraft.platform,
+      cadenceDays: cadenceDays,
+      lastContacted: Date.now()
+    });
+    addedCount++;
+    saveContacts();
+    triageAdvance();
+  }
+
+  function triageSkip() {
+    triageAdvance();
+  }
+
+  function triageAdvance() {
+    pendingQueue.splice(triageIndex, 1);
+    savePendingQueue();
+    triageDraft = { platform: 'imessage', cadenceKey: '30' };
+    render();
+  }
+
+  function triageFinishLater() {
+    viewMode = 'list';
+    render();
+  }
+
+  function triageDoneReturn() {
+    pendingQueue = [];
+    savePendingQueue();
+    viewMode = 'list';
+    render();
+  }
+
+  window.__appActions = {
+    logContact, openAddSheet, openEditSheet, closeSheet, saveDraft, deleteContact, setDraftField,
+    openImport, closeImport, handleFileImport, triageSetField, triageAdd, triageSkip, triageFinishLater, triageDoneReturn,
+    openSettings, closeSettings, saveReminderTime, downloadIcs
+  };
+
+  function escapeHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function renderCard(c) {
+    const status = getStatus(c);
+    const since = daysSince(c.lastContacted);
+    const plat = PLATFORMS[c.platform] || PLATFORMS.other;
+    let counterHtml;
+    if (status === 'none') {
+      counterHtml = `<div class="counter none"><span class="num">${since}d</span><span class="lbl">since</span></div>`;
+    } else if (status === 'overdue') {
+      const over = since - c.cadenceDays;
+      counterHtml = `<div class="counter overdue"><span class="num">+${over}d</span><span class="lbl">overdue</span></div>`;
+    } else if (status === 'due') {
+      const left = c.cadenceDays - since;
+      counterHtml = `<div class="counter due"><span class="num">${left}d</span><span class="lbl">left</span></div>`;
+    } else {
+      const left = c.cadenceDays - since;
+      counterHtml = `<div class="counter ok"><span class="num">${left}d</span><span class="lbl">left</span></div>`;
+    }
+
+    return `
+      <div class="card">
+        <div class="card-tab" style="background:${plat.color}"></div>
+        <div class="card-body" onclick="window.__appActions.openEditSheet('${c.id}')">
+          <div class="card-name">${escapeHtml(c.name)}</div>
+          <div class="card-meta">
+            <span class="platform-dot" style="background:${plat.color}"></span>
+            ${plat.label} · last contacted ${since === 0 ? 'today' : since + 'd ago'}
+          </div>
+        </div>
+        <div class="card-right">
+          ${counterHtml}
+          <button class="log-btn" onclick="window.__appActions.logContact('${c.id}')" aria-label="Mark as contacted today">✓</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function render() {
+    if (!loaded) {
+      root.innerHTML = `<div class="loading-msg">Opening the rolodex…</div>`;
+      return;
+    }
+
+    if (viewMode === 'importHelp') {
+      root.innerHTML = renderImportHelp();
+      return;
+    }
+
+    if (viewMode === 'triage') {
+      root.innerHTML = renderTriage();
+      attachSwipeHandlers();
+      return;
+    }
+
+    let filtered = contacts.filter(c => {
+      if (searchQuery && !c.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+      if (activeFilter === 'due') return getStatus(c) === 'overdue' || getStatus(c) === 'due';
+      if (activeFilter === 'all') return true;
+      return c.platform === activeFilter;
+    });
+
+    filtered.sort((a, b) => {
+      const rank = { overdue: 0, due: 1, ok: 2, none: 3 };
+      const sa = getStatus(a), sb = getStatus(b);
+      if (rank[sa] !== rank[sb]) return rank[sa] - rank[sb];
+      const da = daysSince(a.lastContacted), db = daysSince(b.lastContacted);
+      return db - da;
+    });
+
+    const dueCount = contacts.filter(c => { const s = getStatus(c); return s === 'overdue' || s === 'due'; }).length;
+
+    let listHtml;
+    if (contacts.length === 0) {
+      listHtml = `
+        <div class="empty-state">
+          <div class="big">No contacts yet</div>
+          <div class="small">Tap + to add your first person and set a reminder cadence.</div>
+        </div>`;
+    } else if (filtered.length === 0) {
+      listHtml = `
+        <div class="empty-state">
+          <div class="big">Nobody here</div>
+          <div class="small">Try a different filter or search term.</div>
+        </div>`;
+    } else {
+      listHtml = filtered.map(renderCard).join('');
+    }
+
+    root.innerHTML = `
+      <div class="header">
+        <div class="header-title">Keeping in touch</div>
+        <div class="header-count">${dueCount} <span class="sub">due to reach out to</span></div>
+        <div class="search-row">
+          <input class="search-input" type="text" placeholder="Search contacts…" value="${escapeHtml(searchQuery)}" oninput="window.__searchInput(this.value)" />
+          <div class="import-btn" onclick="window.__appActions.openImport()" aria-label="Import contacts">⇪</div>
+          <div class="import-btn" onclick="window.__appActions.openSettings()" aria-label="Settings">⚙</div>
+        </div>
+        <div class="chips">
+          <div class="chip ${activeFilter === 'due' ? 'active' : ''}" onclick="window.__setFilter('due')">DUE</div>
+          <div class="chip ${activeFilter === 'all' ? 'active' : ''}" onclick="window.__setFilter('all')">ALL (${contacts.length})</div>
+          <div class="chip ${activeFilter === 'imessage' ? 'active' : ''}" onclick="window.__setFilter('imessage')">IMESSAGE</div>
+          <div class="chip ${activeFilter === 'instagram' ? 'active' : ''}" onclick="window.__setFilter('instagram')">INSTAGRAM</div>
+          <div class="chip ${activeFilter === 'whatsapp' ? 'active' : ''}" onclick="window.__setFilter('whatsapp')">WHATSAPP</div>
+          <div class="chip ${activeFilter === 'facebook' ? 'active' : ''}" onclick="window.__setFilter('facebook')">FACEBOOK</div>
+          <div class="chip ${activeFilter === 'messenger' ? 'active' : ''}" onclick="window.__setFilter('messenger')">MESSENGER</div>
+          <div class="chip ${activeFilter === 'telegram' ? 'active' : ''}" onclick="window.__setFilter('telegram')">TELEGRAM</div>
+          <div class="chip ${activeFilter === 'linkedin' ? 'active' : ''}" onclick="window.__setFilter('linkedin')">LINKEDIN</div>
+          <div class="chip ${activeFilter === 'discord' ? 'active' : ''}" onclick="window.__setFilter('discord')">DISCORD</div>
+        </div>
+      </div>
+      <div class="list">${listHtml}</div>
+      <button class="fab" onclick="window.__appActions.openAddSheet()" aria-label="Add contact">+</button>
+      ${sheetOpen ? renderSheet() : ''}
+      ${settingsOpen ? renderSettingsSheet() : ''}
+    `;
+  }
+
+  function toggleGuide(key) {
+    expandedGuide = expandedGuide === key ? null : key;
+    render();
+  }
+  window.__toggleGuide = toggleGuide;
+
+  // ---- Settings & calendar reminder ----
+
+  function openSettings() {
+    settingsOpen = true;
+    render();
+  }
+
+  function closeSettings() {
+    settingsOpen = false;
+    render();
+  }
+
+  async function saveReminderTime(value) {
+    reminderTime = value;
+    try {
+      localStorage.setItem('reminder-time', reminderTime);
+    } catch (e) {
+      console.error('Save failed', e);
+    }
+    render();
+  }
+
+  function pad2(n) { return String(n).padStart(2, '0'); }
+
+  function icsTimestamp(d) {
+    return d.getUTCFullYear() + pad2(d.getUTCMonth() + 1) + pad2(d.getUTCDate()) + 'T' +
+      pad2(d.getUTCHours()) + pad2(d.getUTCMinutes()) + pad2(d.getUTCSeconds()) + 'Z';
+  }
+
+  function downloadIcs() {
+    const [hh, mm] = reminderTime.split(':').map(Number);
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm, 0);
+    if (start < now) start.setDate(start.getDate() + 1);
+
+    const dtStart = icsTimestamp(start);
+    const dtStamp = icsTimestamp(new Date());
+    const uid = 'keeping-in-touch-' + Date.now() + '@local';
+
+    const ics = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Keeping in Touch//Contact Reminder//EN',
+      'CALSCALE:GREGORIAN',
+      'BEGIN:VEVENT',
+      'UID:' + uid,
+      'DTSTAMP:' + dtStamp,
+      'DTSTART:' + dtStart,
+      'DURATION:PT10M',
+      'RRULE:FREQ=DAILY',
+      'SUMMARY:Check who\\\'s due to reach out',
+      'DESCRIPTION:Open Keeping in Touch and see who\\\'s due today.',
+      'BEGIN:VALARM',
+      'TRIGGER:PT0M',
+      'ACTION:DISPLAY',
+      'DESCRIPTION:Check who\\\'s due to reach out',
+      'END:VALARM',
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ].join('\r\n');
+
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'keeping-in-touch-reminder.ics';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function renderImportHelp() {
+    const guideItems = Object.keys(PLATFORM_GUIDES).map(key => {
+      const g = PLATFORM_GUIDES[key];
+      const plat = PLATFORMS[key];
+      const isOpen = expandedGuide === key;
+      return `
+        <div class="guide-item">
+          <div class="guide-header" onclick="window.__toggleGuide('${key}')">
+            <span class="platform-dot" style="background:${plat.color}"></span>
+            <span class="guide-title">${g.title}</span>
+            <span class="guide-arrow ${isOpen ? 'open' : ''}">›</span>
+          </div>
+          ${isOpen ? `
+            <div class="guide-body">
+              <ol>${g.steps.map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ol>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="triage-overlay">
+        <div class="triage-top">
+          <div class="triage-progress mono">IMPORT CONTACTS</div>
+          <div class="triage-close" onclick="window.__appActions.closeImport()">Close</div>
+        </div>
+        <div class="import-help" style="padding-bottom: 10px;">
+          <div class="big">Bring in your real contacts</div>
+          <div class="small">Tap a platform below for export steps, then upload the file you get. Supports .vcf, .csv, .txt, and .json. Names go into a quick swipe feed — assign platform + cadence per person, or skip anyone you don't want tracked.</div>
+        </div>
+        <div class="guide-list">${guideItems}</div>
+        <div style="text-align:center; padding-bottom: 40px;">
+          <label class="file-label">
+            Choose file to upload
+            <input type="file" accept=".vcf,.csv,.txt,.json" style="display:none" onchange="window.__appActions.handleFileImport(this)" />
+          </label>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderTriage() {
+    if (pendingQueue.length === 0) {
+      return `
+        <div class="triage-overlay">
+          <div class="triage-top">
+            <div class="triage-progress mono">DONE</div>
+            <div class="triage-close" onclick="window.__appActions.triageDoneReturn()">Close</div>
+          </div>
+          <div class="triage-done">
+            <div class="big-num">${addedCount}</div>
+            <div class="msg">contact${addedCount === 1 ? '' : 's'} added to your list</div>
+            <button class="btn-primary" style="max-width:200px;margin:0 auto;" onclick="window.__appActions.triageDoneReturn()">Back to list</button>
+          </div>
+        </div>
+      `;
+    }
+
+    const item = pendingQueue[0];
+    const remaining = pendingQueue.length;
+
+    const platformChips = Object.keys(PLATFORMS).map(key => {
+      const p = PLATFORMS[key];
+      return `<div class="option-btn platform-btn ${triageDraft.platform === key ? 'active' : ''}" onclick="window.__appActions.triageSetField('platform', '${key}')">
+        <span class="platform-dot" style="background:${triageDraft.platform === key ? '#171B24' : p.color}"></span>${p.label}
+      </div>`;
+    }).join('');
+
+    const cadenceChips = CADENCE_OPTIONS.map(o => {
+      return `<div class="option-btn ${triageDraft.cadenceKey === o.key ? 'active' : ''}" onclick="window.__appActions.triageSetField('cadenceKey', '${o.key}')">${o.label}</div>`;
+    }).join('');
+
+    return `
+      <div class="triage-overlay">
+        <div class="triage-top">
+          <div class="triage-progress mono">${remaining} left</div>
+          <div class="triage-close" onclick="window.__appActions.triageFinishLater()">Finish later</div>
+        </div>
+        <div class="triage-stage">
+          <div class="triage-card" id="triage-card-el">
+            <div class="triage-hint skip mono" id="hint-skip">SKIP</div>
+            <div class="triage-hint add mono" id="hint-add">ADD</div>
+            <div class="triage-name">${escapeHtml(item.name)}</div>
+            <div class="triage-field-label">Platform</div>
+            <div class="triage-chip-grid">${platformChips}</div>
+            <div class="triage-field-label">Reminder cadence</div>
+            <div class="triage-chip-grid">${cadenceChips}</div>
+            ${triageDraft.cadenceKey === 'custom' ? `
+              <input class="text-field" type="number" min="1" placeholder="Days between reminders" oninput="window.__triageCustom(this.value)" />
+            ` : ''}
+          </div>
+        </div>
+        <div class="triage-actions">
+          <button class="triage-skip-btn" onclick="window.__appActions.triageSkip()">Skip person</button>
+          <button class="triage-add-btn" onclick="window.__appActions.triageAdd()">Add contact</button>
+        </div>
+      </div>
+    `;
+  }
+
+  window.__triageCustom = function(v) { triageDraft.customDays = v; };
+
+  function attachSwipeHandlers() {
+    const card = document.getElementById('triage-card-el');
+    if (!card) return;
+    const hintSkip = document.getElementById('hint-skip');
+    const hintAdd = document.getElementById('hint-add');
+
+    let startX = 0, startY = 0, dx = 0, dragging = false;
+
+    function onDown(x, y) {
+      dragging = true;
+      startX = x; startY = y;
+      card.style.transition = 'none';
+    }
+    function onMove(x, y) {
+      if (!dragging) return;
+      dx = x - startX;
+      const dy = y - startY;
+      card.style.transform = `translate(${dx}px, ${dy * 0.15}px) rotate(${dx * 0.04}deg)`;
+      const t = Math.min(Math.abs(dx) / 100, 1);
+      if (dx < 0) { hintSkip.style.opacity = t; hintAdd.style.opacity = 0; }
+      else { hintAdd.style.opacity = t; hintSkip.style.opacity = 0; }
+    }
+    function onUp() {
+      if (!dragging) return;
+      dragging = false;
+      card.style.transition = 'transform 0.25s ease';
+      if (dx > 110) {
+        card.style.transform = `translate(600px, -40px) rotate(20deg)`;
+        setTimeout(() => window.__appActions.triageAdd(), 180);
+      } else if (dx < -110) {
+        card.style.transform = `translate(-600px, -40px) rotate(-20deg)`;
+        setTimeout(() => window.__appActions.triageSkip(), 180);
+      } else {
+        card.style.transform = 'translate(0,0) rotate(0)';
+        hintSkip.style.opacity = 0;
+        hintAdd.style.opacity = 0;
+      }
+      dx = 0;
+    }
+
+    card.addEventListener('mousedown', (e) => onDown(e.clientX, e.clientY));
+    window.addEventListener('mousemove', (e) => onMove(e.clientX, e.clientY));
+    window.addEventListener('mouseup', onUp);
+
+    card.addEventListener('touchstart', (e) => {
+      const t = e.touches[0];
+      onDown(t.clientX, t.clientY);
+    }, { passive: true });
+    card.addEventListener('touchmove', (e) => {
+      const t = e.touches[0];
+      onMove(t.clientX, t.clientY);
+    }, { passive: true });
+    card.addEventListener('touchend', onUp);
+  }
+
+  function renderSettingsSheet() {
+    return `
+      <div class="sheet-overlay" onclick="if(event.target===this) window.__appActions.closeSettings()">
+        <div class="sheet">
+          <div class="sheet-handle"></div>
+          <div class="sheet-title">Daily reminder</div>
+          <div style="font-size:13px; color:var(--text-secondary); line-height:1.6;">
+            One reminder fires per day at the time below — not one per contact — so you're nudged to check the app instead of getting bombarded when several people are due the same day.
+          </div>
+
+          <div class="field-label">Reminder time</div>
+          <input class="text-field" type="time" value="${escapeHtml(reminderTime)}" oninput="window.__appActions.saveReminderTime(this.value)" />
+
+          <div class="field-label">Add to your calendar</div>
+          <div style="font-size:13px; color:var(--text-secondary); margin-bottom:14px; line-height:1.6;">
+            Downloads a .ics file with a daily recurring reminder at ${escapeHtml(reminderTime)}. Open it on your iPhone or Mac to add it to Apple Calendar — it'll sync to both automatically via iCloud. Google Calendar can import it too.
+          </div>
+          <button class="btn-primary" style="width:100%;" onclick="window.__appActions.downloadIcs()">Download calendar reminder (.ics)</button>
+
+          <div class="sheet-actions">
+            <button class="btn-secondary" style="width:100%;" onclick="window.__appActions.closeSettings()">Done</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderSheet() {
+    const platformButtons = Object.keys(PLATFORMS).map(key => {
+      const p = PLATFORMS[key];
+      return `<div class="option-btn platform-btn ${draft.platform === key ? 'active' : ''}" onclick="window.__appActions.setDraftField('platform', '${key}')">
+        <span class="platform-dot" style="background:${draft.platform === key ? '#171B24' : p.color}"></span>${p.label}
+      </div>`;
+    }).join('');
+
+    const cadenceButtons = CADENCE_OPTIONS.map(o => {
+      return `<div class="option-btn ${draft.cadenceKey === o.key ? 'active' : ''}" onclick="window.__appActions.setDraftField('cadenceKey', '${o.key}')">${o.label}</div>`;
+    }).join('');
+
+    return `
+      <div class="sheet-overlay" onclick="if(event.target===this) window.__appActions.closeSheet()">
+        <div class="sheet">
+          <div class="sheet-handle"></div>
+          <div class="sheet-title">${editingContact ? 'Edit contact' : 'Add contact'}</div>
+
+          <div class="field-label">Name</div>
+          <input class="text-field" type="text" value="${escapeHtml(draft.name)}" placeholder="Contact name" oninput="window.__draftName(this.value)" />
+
+          <div class="field-label">Platform</div>
+          <div class="option-grid">${platformButtons}</div>
+
+          <div class="field-label">Reminder cadence</div>
+          <div class="option-grid">${cadenceButtons}</div>
+
+          ${draft.cadenceKey === 'custom' ? `
+            <div class="field-label">Custom — days between reminders</div>
+            <input class="text-field" type="number" min="1" value="${escapeHtml(draft.customDays)}" placeholder="e.g. 21" oninput="window.__draftCustom(this.value)" />
+          ` : ''}
+
+          <div class="sheet-actions">
+            <button class="btn-secondary" onclick="window.__appActions.closeSheet()">Cancel</button>
+            <button class="btn-primary" onclick="window.__appActions.saveDraft()">${editingContact ? 'Save' : 'Add contact'}</button>
+          </div>
+          ${editingContact ? `<div style="margin-top:10px;"><button class="btn-danger" style="width:100%" onclick="window.__appActions.deleteContact()">Remove contact</button></div>` : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  window.__setFilter = function(f) { activeFilter = f; render(); };
+  window.__searchInput = function(v) { searchQuery = v; render(); };
+  window.__draftName = function(v) { draft.name = v; };
+  window.__draftCustom = function(v) { draft.customDays = v; };
+
+  loadContacts();
+})();
+</script>
+
+</body>
+</html>
