@@ -794,6 +794,7 @@
   let pendingQueue = [];
   let triageIndex = 0;
   let triageHistory = [];
+  let skippedContacts = [];
   let triageDraft = { platform: 'imessage', cadenceKey: '30' };
   let addedCount = 0;
   let expandedGuide = null;
@@ -823,6 +824,12 @@
       triageHistory = [];
     }
     try {
+      const raw = localStorage.getItem('skipped-contacts');
+      skippedContacts = raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      skippedContacts = [];
+    }
+    try {
       const t = localStorage.getItem('reminder-time');
       if (t) reminderTime = t;
     } catch (e) {
@@ -843,6 +850,14 @@
   async function saveTriageHistory() {
     try {
       localStorage.setItem('triage-history', JSON.stringify(triageHistory));
+    } catch (e) {
+      console.error('Save failed', e);
+    }
+  }
+
+  async function saveSkipped() {
+    try {
+      localStorage.setItem('skipped-contacts', JSON.stringify(skippedContacts));
     } catch (e) {
       console.error('Save failed', e);
     }
@@ -1110,7 +1125,13 @@
   function triageSkip() {
     const item = pendingQueue[0];
     if (!item) return;
-    triageHistory.push({ item: item, action: 'skip', draft: { ...triageDraft } });
+    let addedToSkipped = false;
+    if (!skippedContacts.some(s => s.name.toLowerCase() === item.name.toLowerCase())) {
+      skippedContacts.push({ name: item.name });
+      addedToSkipped = true;
+      saveSkipped();
+    }
+    triageHistory.push({ item: item, action: 'skip', draft: { ...triageDraft }, addedToSkipped: addedToSkipped });
     saveTriageHistory();
     triageNext();
   }
@@ -1130,6 +1151,10 @@
       contacts = contacts.filter(c => c.id !== entry.contactId);
       if (addedCount > 0) addedCount--;
       saveContacts();
+    } else if (entry.action === 'skip' && entry.addedToSkipped) {
+      const idx = skippedContacts.map(s => s.name.toLowerCase()).lastIndexOf(entry.item.name.toLowerCase());
+      if (idx !== -1) skippedContacts.splice(idx, 1);
+      saveSkipped();
     }
     pendingQueue.unshift(entry.item);
     triageDraft = entry.draft ? { ...entry.draft } : { platform: 'imessage', cadenceKey: '30' };
@@ -1140,6 +1165,46 @@
 
   function triageFinishLater() {
     viewMode = 'list';
+    render();
+  }
+
+  // ---- Skipped contacts ----
+
+  function openSkipped() {
+    viewMode = 'skipped';
+    render();
+  }
+
+  function closeSkipped() {
+    viewMode = 'list';
+    render();
+  }
+
+  function skippedReAdd(i) {
+    const s = skippedContacts[i];
+    if (!s) return;
+    skippedContacts.splice(i, 1);
+    saveSkipped();
+    pendingQueue.push({ name: s.name });
+    savePendingQueue();
+    viewMode = 'triage';
+    render();
+  }
+
+  function skippedReAddAll() {
+    if (skippedContacts.length === 0) return;
+    skippedContacts.forEach(s => pendingQueue.push({ name: s.name }));
+    skippedContacts = [];
+    saveSkipped();
+    savePendingQueue();
+    viewMode = 'triage';
+    render();
+  }
+
+  function skippedRemove(i) {
+    if (i < 0 || i >= skippedContacts.length) return;
+    skippedContacts.splice(i, 1);
+    saveSkipped();
     render();
   }
 
@@ -1155,6 +1220,7 @@
   window.__appActions = {
     logContact, openAddSheet, openEditSheet, closeSheet, saveDraft, deleteContact, setDraftField,
     openImport, closeImport, handleFileImport, triageSetField, triageAdd, triageSkip, triageBack, triageFinishLater, triageDoneReturn,
+    openSkipped, closeSkipped, skippedReAdd, skippedReAddAll, skippedRemove,
     openSettings, closeSettings, saveReminderTime, downloadIcs
   };
 
@@ -1217,6 +1283,11 @@
       return;
     }
 
+    if (viewMode === 'skipped') {
+      root.innerHTML = renderSkipped();
+      return;
+    }
+
     let filtered = contacts.filter(c => {
       if (searchQuery && !c.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       if (activeFilter === 'due') return getStatus(c) === 'overdue' || getStatus(c) === 'due';
@@ -1258,6 +1329,7 @@
         <div class="search-row">
           <input class="search-input" type="text" placeholder="Search contacts…" value="${escapeHtml(searchQuery)}" oninput="window.__searchInput(this.value)" />
           <div class="import-btn" onclick="window.__appActions.openImport()" aria-label="Import contacts">⇪</div>
+          ${skippedContacts.length > 0 ? `<div class="import-btn" onclick="window.__appActions.openSkipped()" aria-label="Skipped contacts" style="position:relative;">⊘<span style="position:absolute;top:-5px;right:-5px;background:var(--accent-rose);color:#171B24;font-size:9px;font-weight:700;min-width:15px;height:15px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 3px;">${skippedContacts.length}</span></div>` : ''}
           <div class="import-btn" onclick="window.__appActions.openSettings()" aria-label="Settings">⚙</div>
         </div>
         <div class="chips">
@@ -1395,7 +1467,48 @@
             Choose file to upload
             <input type="file" accept=".vcf,.csv,.txt,.json" style="display:none" onchange="window.__appActions.handleFileImport(this)" />
           </label>
+          ${skippedContacts.length > 0 ? `<div style="margin-top:18px;"><button class="triage-back" onclick="window.__appActions.openSkipped()">View ${skippedContacts.length} skipped contact${skippedContacts.length === 1 ? '' : 's'} ›</button></div>` : ''}
         </div>
+      </div>
+    `;
+  }
+
+  function renderSkipped() {
+    let body;
+    if (skippedContacts.length === 0) {
+      body = `
+        <div class="empty-state">
+          <div class="big">No skipped contacts</div>
+          <div class="small">People you skip during import show up here so you can add them later.</div>
+        </div>`;
+    } else {
+      const items = skippedContacts.map((s, i) => `
+        <div class="card">
+          <div class="card-tab" style="background:var(--other)"></div>
+          <div class="card-body" style="cursor:default">
+            <div class="card-name">${escapeHtml(s.name)}</div>
+            <div class="card-meta">Skipped during import</div>
+          </div>
+          <div class="card-right">
+            <button class="btn-secondary" style="padding:8px 12px;font-size:13px;" onclick="window.__appActions.skippedReAdd(${i})">Re-add</button>
+            <button class="log-btn" onclick="window.__appActions.skippedRemove(${i})" aria-label="Remove from skipped">✕</button>
+          </div>
+        </div>
+      `).join('');
+      body = `<div class="list" style="padding-top:14px;">${items}</div>`;
+    }
+
+    return `
+      <div class="triage-overlay">
+        <div class="triage-top">
+          <div class="triage-progress mono">SKIPPED (${skippedContacts.length})</div>
+          <div class="triage-close" onclick="window.__appActions.closeSkipped()">Close</div>
+        </div>
+        ${skippedContacts.length > 0 ? `
+          <div style="padding: 4px 18px 10px;">
+            <button class="btn-primary" style="width:100%;" onclick="window.__appActions.skippedReAddAll()">Review all ${skippedContacts.length} again</button>
+          </div>` : ''}
+        <div style="flex:1; overflow-y:auto;">${body}</div>
       </div>
     `;
   }
@@ -1413,6 +1526,7 @@
             <div class="big-num">${addedCount}</div>
             <div class="msg">contact${addedCount === 1 ? '' : 's'} added to your list</div>
             <button class="btn-primary" style="max-width:200px;margin:0 auto;" onclick="window.__appActions.triageDoneReturn()">Back to list</button>
+            ${skippedContacts.length > 0 ? `<div style="margin-top:14px;"><button class="triage-back" onclick="window.__appActions.openSkipped()">View ${skippedContacts.length} skipped ›</button></div>` : ''}
           </div>
         </div>
       `;
