@@ -513,6 +513,32 @@
     word-break: break-word;
   }
 
+  #app-root .triage-name-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 1px dashed var(--border);
+    color: var(--text-primary);
+    font-size: 24px;
+    font-weight: 700;
+    text-align: center;
+    margin: 10px 0 22px;
+    padding: 4px 0;
+    font-family: 'Inter', sans-serif;
+  }
+  #app-root .triage-name-input:focus { outline: none; border-bottom-color: var(--accent-amber); }
+
+  #app-root .triage-back {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--text-secondary);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 12px;
+    cursor: pointer;
+  }
+
   #app-root .triage-field-label {
     font-family: 'Space Mono', monospace;
     font-size: 10px;
@@ -767,6 +793,7 @@
   let viewMode = 'list'; // 'list' | 'importHelp' | 'triage'
   let pendingQueue = [];
   let triageIndex = 0;
+  let triageHistory = [];
   let triageDraft = { platform: 'imessage', cadenceKey: '30' };
   let addedCount = 0;
   let expandedGuide = null;
@@ -790,6 +817,12 @@
       pendingQueue = [];
     }
     try {
+      const raw = localStorage.getItem('triage-history');
+      triageHistory = raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      triageHistory = [];
+    }
+    try {
       const t = localStorage.getItem('reminder-time');
       if (t) reminderTime = t;
     } catch (e) {
@@ -802,6 +835,14 @@
   async function savePendingQueue() {
     try {
       localStorage.setItem('pending-queue', JSON.stringify(pendingQueue));
+    } catch (e) {
+      console.error('Save failed', e);
+    }
+  }
+
+  async function saveTriageHistory() {
+    try {
+      localStorage.setItem('triage-history', JSON.stringify(triageHistory));
     } catch (e) {
       console.error('Save failed', e);
     }
@@ -1027,6 +1068,8 @@
       pendingQueue = deduped.map(n => ({ name: n }));
       triageIndex = 0;
       addedCount = 0;
+      triageHistory = [];
+      saveTriageHistory();
       savePendingQueue();
       viewMode = pendingQueue.length > 0 ? 'triage' : 'list';
       render();
@@ -1040,7 +1083,7 @@
   }
 
   function triageAdd() {
-    const item = pendingQueue[triageIndex];
+    const item = pendingQueue[0];
     if (!item) return;
     let cadenceDays = null;
     if (triageDraft.cadenceKey === 'custom') {
@@ -1049,26 +1092,49 @@
       const opt = CADENCE_OPTIONS.find(o => o.key === triageDraft.cadenceKey);
       cadenceDays = opt.days;
     }
+    const id = 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
     contacts.push({
-      id: 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+      id: id,
       name: item.name,
       platform: triageDraft.platform,
       cadenceDays: cadenceDays,
       lastContacted: Date.now()
     });
     addedCount++;
+    triageHistory.push({ item: item, action: 'add', contactId: id, draft: { ...triageDraft } });
     saveContacts();
-    triageAdvance();
+    saveTriageHistory();
+    triageNext();
   }
 
   function triageSkip() {
-    triageAdvance();
+    const item = pendingQueue[0];
+    if (!item) return;
+    triageHistory.push({ item: item, action: 'skip', draft: { ...triageDraft } });
+    saveTriageHistory();
+    triageNext();
   }
 
-  function triageAdvance() {
-    pendingQueue.splice(triageIndex, 1);
+  function triageNext() {
+    pendingQueue.shift();
     savePendingQueue();
     triageDraft = { platform: 'imessage', cadenceKey: '30' };
+    render();
+  }
+
+  // Undo the last add/skip and return to that person, restoring their choices.
+  function triageBack() {
+    if (triageHistory.length === 0) return;
+    const entry = triageHistory.pop();
+    if (entry.action === 'add') {
+      contacts = contacts.filter(c => c.id !== entry.contactId);
+      if (addedCount > 0) addedCount--;
+      saveContacts();
+    }
+    pendingQueue.unshift(entry.item);
+    triageDraft = entry.draft ? { ...entry.draft } : { platform: 'imessage', cadenceKey: '30' };
+    saveTriageHistory();
+    savePendingQueue();
     render();
   }
 
@@ -1079,14 +1145,16 @@
 
   function triageDoneReturn() {
     pendingQueue = [];
+    triageHistory = [];
     savePendingQueue();
+    saveTriageHistory();
     viewMode = 'list';
     render();
   }
 
   window.__appActions = {
     logContact, openAddSheet, openEditSheet, closeSheet, saveDraft, deleteContact, setDraftField,
-    openImport, closeImport, handleFileImport, triageSetField, triageAdd, triageSkip, triageFinishLater, triageDoneReturn,
+    openImport, closeImport, handleFileImport, triageSetField, triageAdd, triageSkip, triageBack, triageFinishLater, triageDoneReturn,
     openSettings, closeSettings, saveReminderTime, downloadIcs
   };
 
@@ -1337,6 +1405,7 @@
       return `
         <div class="triage-overlay">
           <div class="triage-top">
+            ${triageHistory.length > 0 ? `<div class="triage-back" onclick="window.__appActions.triageBack()">‹ Back</div>` : `<div style="width:1px"></div>`}
             <div class="triage-progress mono">DONE</div>
             <div class="triage-close" onclick="window.__appActions.triageDoneReturn()">Close</div>
           </div>
@@ -1366,6 +1435,7 @@
     return `
       <div class="triage-overlay">
         <div class="triage-top">
+          ${triageHistory.length > 0 ? `<div class="triage-back" onclick="window.__appActions.triageBack()">‹ Back</div>` : `<div style="width:1px"></div>`}
           <div class="triage-progress mono">${remaining} left</div>
           <div class="triage-close" onclick="window.__appActions.triageFinishLater()">Finish later</div>
         </div>
@@ -1373,7 +1443,8 @@
           <div class="triage-card" id="triage-card-el">
             <div class="triage-hint skip mono" id="hint-skip">SKIP</div>
             <div class="triage-hint add mono" id="hint-add">ADD</div>
-            <div class="triage-name">${escapeHtml(item.name)}</div>
+            <div class="triage-field-label">Name</div>
+            <input class="triage-name-input" type="text" value="${escapeHtml(item.name)}" oninput="window.__triageName(this.value)" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" />
             <div class="triage-field-label">Platform</div>
             <div class="triage-chip-grid">${platformChips}</div>
             <div class="triage-field-label">Reminder cadence</div>
@@ -1392,6 +1463,7 @@
   }
 
   window.__triageCustom = function(v) { triageDraft.customDays = v; };
+  window.__triageName = function(v) { if (pendingQueue[0]) { pendingQueue[0].name = v; savePendingQueue(); } };
 
   function attachSwipeHandlers() {
     const card = document.getElementById('triage-card-el');
