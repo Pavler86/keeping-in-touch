@@ -610,15 +610,27 @@
   #app-root .import-help .big { font-size: 16px; font-weight: 600; margin-bottom: 10px; }
   #app-root .import-help .small { font-size: 13px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 22px; }
   #app-root .import-help .file-label {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     background: var(--accent-amber);
     color: #171B24;
     font-weight: 700;
-    font-size: 14px;
-    padding: 13px 22px;
+    font-size: 15px;
+    padding: 14px 24px;
     border-radius: 10px;
     cursor: pointer;
+    user-select: none;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
   }
+  #app-root .import-help .file-label:hover { background: #F0B04F; }
+  #app-root .import-help .file-label:active {
+    transform: scale(0.95);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+    background: #D9922F;
+  }
+  #app-root .import-help .file-label .file-label-icon { font-size: 17px; line-height: 1; }
 
   #app-root .guide-list {
     padding: 0 20px 24px;
@@ -1542,7 +1554,7 @@
         <div class="guide-list">${guideItems}</div>
         <div style="text-align:center; padding-bottom: 40px;">
           <label class="file-label">
-            Choose file to upload
+            <span class="file-label-icon">⇪</span> Choose file to upload
             <input type="file" accept=".vcf,.csv,.txt,.json" style="display:none" onchange="window.__appActions.handleFileImport(this)" />
           </label>
           ${skippedContacts.length > 0 ? `<div style="margin-top:18px;"><button class="triage-back" onclick="window.__appActions.openSkipped()">View ${skippedContacts.length} skipped contact${skippedContacts.length === 1 ? '' : 's'} ›</button></div>` : ''}
