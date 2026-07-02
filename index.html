@@ -933,8 +933,16 @@
     }
   }
 
+  // Count calendar days elapsed (midnight-to-midnight), not raw 24h blocks, so
+  // a contact logged this evening rolls over to "1d ago" tomorrow morning
+  // regardless of the exact time of day it was logged.
+  function startOfDay(ts) {
+    const d = new Date(ts);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  }
   function daysSince(ts) {
-    return Math.floor((Date.now() - ts) / 86400000);
+    return Math.round((startOfDay(Date.now()) - startOfDay(ts)) / 86400000);
   }
 
   function getStatus(c) {
