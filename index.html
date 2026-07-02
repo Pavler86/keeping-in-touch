@@ -590,6 +590,36 @@
   }
   #app-root .triage-name-input:focus { outline: none; border-bottom-color: var(--accent-amber); }
 
+  #app-root .triage-preview {
+    text-align: center;
+    margin-bottom: 6px;
+  }
+  #app-root .triage-avatar {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+    margin: 0 auto 8px;
+    border: 2px solid var(--border);
+    background: var(--surface-raised);
+  }
+  #app-root .triage-profile-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent-teal);
+    background: var(--accent-teal-dim);
+    border: 1px solid var(--accent-teal);
+    border-radius: 8px;
+    padding: 7px 12px;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
   #app-root .triage-back {
     font-family: 'Space Mono', monospace;
     font-size: 12px;
@@ -872,6 +902,10 @@
   let triageHistory = [];
   let skippedContacts = [];
   let triageDraft = { platform: 'imessage', cadenceKey: '30' };
+  // Embedded vCard photos for the current import, keyed by importName (lowercased).
+  // Kept in memory only — never written to localStorage, since base64 photos would
+  // quickly blow past the storage quota. Shown on the review card this session.
+  let triagePhotos = {};
   let addedCount = 0;
   let expandedGuide = null;
   let settingsOpen = false;
@@ -1087,17 +1121,58 @@
     render();
   }
 
+  // Only http(s) links are ever surfaced as an "Open profile" target — this
+  // blocks javascript: and other schemes that could ride in from an import file.
+  function safeUrl(u) {
+    return /^https?:\/\//i.test((u || '').trim()) ? u.trim() : null;
+  }
+
+  // Pull an embedded photo out of a (line-unfolded) vCard block and return it as
+  // a data: URL. Handles vCard 4.0 (already a data URI) and 3.0 base64 payloads;
+  // external URL photo refs are skipped (can't embed reliably offline / CORS).
+  function extractVCardPhoto(block) {
+    const m = block.match(/^PHOTO([^:]*):(.+)$/im);
+    if (!m) return null;
+    const params = m[1] || '';
+    let value = m[2].trim();
+    if (!value) return null;
+    if (/^data:/i.test(value)) return value; // vCard 4.0 data URI
+    const isBase64 = /ENCODING=(b|base64)/i.test(params);
+    if (/^https?:\/\//i.test(value) && !isBase64) return null; // external ref
+    value = value.replace(/\s+/g, '');
+    if (value.length < 32) return null;
+    let mime = 'image/jpeg';
+    const t = params.match(/TYPE=([A-Za-z0-9\/]+)/i);
+    if (t) {
+      let ty = t[1].toLowerCase();
+      if (ty === 'jpg') ty = 'jpeg';
+      mime = ty.indexOf('/') === -1 ? 'image/' + ty : ty;
+    }
+    return 'data:' + mime + ';base64,' + value;
+  }
+
   function parseVCard(text) {
-    const names = [];
+    const out = [];
     const blocks = text.split(/BEGIN:VCARD/i).slice(1);
     blocks.forEach(b => {
-      const match = b.match(/\nFN:(.+)/i) || b.match(/^FN:(.+)/im);
-      if (match) {
-        const n = match[1].trim();
-        if (n) names.push(n);
+      // Unfold RFC 6350 line folding (continuation lines begin with space/tab)
+      // so multi-line base64 PHOTO payloads reassemble into one value.
+      const unfolded = b.replace(/\r\n/g, '\n').replace(/\n[ \t]/g, '');
+      const nameMatch = unfolded.match(/^FN[^:]*:(.+)$/im);
+      if (!nameMatch) return;
+      const name = nameMatch[1].trim();
+      if (!name) return;
+      const item = { name };
+      const photo = extractVCardPhoto(unfolded);
+      if (photo) item.photo = photo;
+      const urlMatch = unfolded.match(/^URL[^:]*:(.+)$/im);
+      if (urlMatch) {
+        const u = safeUrl(urlMatch[1]);
+        if (u) item.url = u;
       }
+      out.push(item);
     });
-    return names;
+    return out;
   }
 
   function parseCsv(text) {
@@ -1112,8 +1187,9 @@
     const firstIdx = header.indexOf('first name');
     const lastIdx = header.indexOf('last name');
     const nameIdx = header.indexOf('name');
+    const urlIdx = header.indexOf('url'); // LinkedIn export includes a profile URL column
 
-    const names = [];
+    const out = [];
     for (let i = headerIdx + 1; i < lines.length; i++) {
       const cols = lines[i].split(',').map(c => c.replace(/"/g, '').trim());
       let full = '';
@@ -1125,13 +1201,19 @@
         full = cols[0];
       }
       full = full.trim();
-      if (full) names.push(full);
+      if (!full) continue;
+      const item = { name: full };
+      if (urlIdx !== -1) {
+        const u = safeUrl(cols[urlIdx]);
+        if (u) item.url = u;
+      }
+      out.push(item);
     }
-    return names;
+    return out;
   }
 
   function parsePlainText(text) {
-    return text.split(/\r?\n/).map(l => l.trim()).filter(l => l);
+    return text.split(/\r?\n/).map(l => l.trim()).filter(l => l).map(name => ({ name }));
   }
 
   function extractNamesFromJson(obj, results) {
@@ -1160,7 +1242,7 @@
     }
     const results = new Set();
     extractNamesFromJson(data, results);
-    return Array.from(results);
+    return Array.from(results).map(name => ({ name }));
   }
 
   // Instagram (and similar Meta) exports also come as HTML, where each person is
@@ -1171,7 +1253,7 @@
       'p', 'explore', 'reel', 'reels', 'stories', 'accounts', 'about',
       'directory', 'help', 'legal', 'privacy', 'instagram', ''
     ]);
-    const names = new Set();
+    const byKey = new Map();
     let doc;
     try {
       doc = new DOMParser().parseFromString(text, 'text/html');
@@ -1182,16 +1264,21 @@
       const href = a.getAttribute('href') || '';
       const linkText = (a.textContent || '').trim();
       let uname = '';
+      let url = null;
       const m = href.match(/(?:instagram|facebook|threads)\.[a-z.]+\/([^\/?#]+)/i);
       if (m && m[1] && !SKIP.has(m[1].toLowerCase())) {
         uname = decodeURIComponent(m[1]);
+        url = safeUrl(href); // the matched href is this person's profile link
       } else if (linkText && !/^https?:\/\//i.test(linkText)) {
         uname = linkText;
       }
       uname = uname.trim().replace(/^@/, '');
-      if (uname && !SKIP.has(uname.toLowerCase())) names.add(uname);
+      if (uname && !SKIP.has(uname.toLowerCase())) {
+        const k = uname.toLowerCase();
+        if (!byKey.has(k)) byKey.set(k, { name: uname, url: url || null });
+      }
     });
-    return Array.from(names);
+    return Array.from(byKey.values());
   }
 
   function handleFileImport(fileInput) {
@@ -1200,19 +1287,23 @@
     const reader = new FileReader();
     reader.onload = function(e) {
       const text = e.target.result;
-      let names = [];
+      let parsed = [];
       const trimmed = text.trim();
       if (/BEGIN:VCARD/i.test(text)) {
-        names = parseVCard(text);
+        parsed = parseVCard(text);
       } else if (/<!DOCTYPE html|<html[\s>]|<a\s[^>]*href=/i.test(text)) {
-        names = parseHtml(text);
+        parsed = parseHtml(text);
       } else if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-        names = parseJson(text);
+        parsed = parseJson(text);
       } else if (text.includes(',')) {
-        names = parseCsv(text);
+        parsed = parseCsv(text);
       } else {
-        names = parsePlainText(text);
+        parsed = parsePlainText(text);
       }
+      // Parsers return { name, url?, photo? }; tolerate a bare string just in case.
+      const names = parsed
+        .map(x => (typeof x === 'string' ? { name: x } : x))
+        .filter(x => x && x.name);
       // Build a lookup of everyone already in the contact list. Match on both the
       // current name and the original imported name, so a contact renamed during
       // triage still counts as "already added" when the same file is re-uploaded.
@@ -1222,19 +1313,27 @@
         if (c.importName) existingLower.add(c.importName.trim().toLowerCase());
       });
 
-      const trimmedNames = names.map(n => n.trim()).filter(n => n.length > 0);
+      const trimmedItems = names
+        .map(it => ({ ...it, name: it.name.trim() }))
+        .filter(it => it.name.length > 0);
       let alreadyAddedCount = 0;
       const seen = new Set();
       const deduped = [];
-      trimmedNames.forEach(n => {
-        const k = n.toLowerCase();
+      trimmedItems.forEach(it => {
+        const k = it.name.toLowerCase();
         if (existingLower.has(k)) { alreadyAddedCount++; return; } // already on the list — skip
         if (seen.has(k)) return; // duplicate within this same file
         seen.add(k);
-        deduped.push(n);
+        deduped.push(it);
       });
 
-      pendingQueue = deduped.map(n => ({ name: n, importName: n }));
+      // Stash any embedded photos in memory (keyed by importName), then build the
+      // queue with just name + profile URL (photos stay out of localStorage).
+      triagePhotos = {};
+      deduped.forEach(it => {
+        if (it.photo) triagePhotos[it.name.toLowerCase()] = it.photo;
+      });
+      pendingQueue = deduped.map(it => ({ name: it.name, importName: it.name, url: it.url || null }));
       triageIndex = 0;
       addedCount = 0;
       triageHistory = [];
@@ -1278,7 +1377,8 @@
       importName: item.importName || item.name,
       platform: triageDraft.platform,
       cadenceDays: cadenceDays,
-      lastContacted: Date.now()
+      lastContacted: Date.now(),
+      profileUrl: item.url || null
     });
     addedCount++;
     triageHistory.push({ item: item, action: 'add', contactId: id, draft: { ...triageDraft } });
@@ -1403,6 +1503,11 @@
     const d = document.createElement('div');
     d.textContent = s;
     return d.innerHTML;
+  }
+
+  // escapeHtml doesn't escape quotes; do that too for values placed in attributes.
+  function escapeAttr(s) {
+    return escapeHtml(s).replace(/"/g, '&quot;');
   }
 
   // Group an already-sorted list into cadence sections (Weekly, Biweekly,
@@ -1886,6 +1991,17 @@
     const item = pendingQueue[0];
     const remaining = pendingQueue.length;
 
+    // Preview: embedded photo (vCard, in-memory) and/or an "Open profile" deep
+    // link (Instagram/Facebook/LinkedIn imports) so you can place who this is
+    // without leaving the app. stopPropagation keeps taps off the swipe handler.
+    const photo = item.importName ? triagePhotos[item.importName.toLowerCase()] : null;
+    const profileUrl = safeUrl(item.url);
+    const previewHtml = (photo || profileUrl) ? `
+      <div class="triage-preview">
+        ${photo ? `<img class="triage-avatar" src="${photo}" alt="" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" />` : ''}
+        ${profileUrl ? `<a class="triage-profile-link" href="${escapeAttr(profileUrl)}" target="_blank" rel="noopener noreferrer" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">Open profile ↗</a>` : ''}
+      </div>` : '';
+
     const platformChips = Object.keys(PLATFORMS).map(key => {
       const p = PLATFORMS[key];
       return `<div class="option-btn platform-btn ${triageDraft.platform === key ? 'active' : ''}" onclick="window.__appActions.triageSetField('platform', '${key}')">
@@ -1908,6 +2024,7 @@
           <div class="triage-card" id="triage-card-el">
             <div class="triage-hint skip mono" id="hint-skip">SKIP</div>
             <div class="triage-hint add mono" id="hint-add">ADD</div>
+            ${previewHtml}
             <div class="triage-field-label">Name</div>
             <input class="triage-name-input" type="text" value="${escapeHtml(item.name)}" oninput="window.__triageName(this.value)" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" />
             <div class="triage-field-label">Platform</div>
