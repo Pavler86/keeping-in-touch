@@ -1387,43 +1387,101 @@
       pad2(d.getUTCHours()) + pad2(d.getUTCMinutes()) + pad2(d.getUTCSeconds()) + 'Z';
   }
 
+  // Map a cadence (in days) to a calendar recurrence rule + human label.
+  function cadenceRule(days) {
+    switch (days) {
+      case 7:   return { rrule: 'FREQ=WEEKLY', label: 'Weekly' };
+      case 14:  return { rrule: 'FREQ=WEEKLY;INTERVAL=2', label: 'Biweekly' };
+      case 30:  return { rrule: 'FREQ=MONTHLY', label: 'Monthly' };
+      case 60:  return { rrule: 'FREQ=MONTHLY;INTERVAL=2', label: 'Bimonthly' };
+      case 365: return { rrule: 'FREQ=YEARLY', label: 'Annual' };
+      default:  return { rrule: 'FREQ=DAILY;INTERVAL=' + days, label: 'Every ' + days + ' days' };
+    }
+  }
+
+  // Escape reserved characters in ICS text values (RFC 5545).
+  function icsEscape(s) {
+    return String(s)
+      .replace(/\\/g, '\\\\')
+      .replace(/;/g, '\\;')
+      .replace(/,/g, '\\,')
+      .replace(/\r?\n/g, '\\n');
+  }
+
+  // Fold lines longer than 75 octets per RFC 5545 (continuation lines start with a space).
+  function foldIcsLine(line) {
+    if (line.length <= 74) return line;
+    let out = line.slice(0, 74);
+    let rest = line.slice(74);
+    while (rest.length > 73) {
+      out += '\r\n ' + rest.slice(0, 73);
+      rest = rest.slice(73);
+    }
+    return out + '\r\n ' + rest;
+  }
+
   function downloadIcs() {
     const [hh, mm] = reminderTime.split(':').map(Number);
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm, 0);
-    if (start < now) start.setDate(start.getDate() + 1);
 
-    const dtStart = icsTimestamp(start);
+    // Group contacts by cadence; contacts with no reminder are excluded.
+    const groups = {};
+    contacts.forEach(c => {
+      if (!c.cadenceDays) return;
+      (groups[c.cadenceDays] = groups[c.cadenceDays] || []).push(c.name);
+    });
+
+    const dayKeys = Object.keys(groups).map(Number).sort((a, b) => a - b);
+    if (dayKeys.length === 0) {
+      alert('No contacts have a reminder cadence set yet. Add cadences first, then export.');
+      return;
+    }
+
     const dtStamp = icsTimestamp(new Date());
-    const uid = 'keeping-in-touch-' + Date.now() + '@local';
-
-    const ics = [
+    const lines = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
       'PRODID:-//Keeping in Touch//Contact Reminder//EN',
-      'CALSCALE:GREGORIAN',
-      'BEGIN:VEVENT',
-      'UID:' + uid,
-      'DTSTAMP:' + dtStamp,
-      'DTSTART:' + dtStart,
-      'DURATION:PT10M',
-      'RRULE:FREQ=DAILY',
-      'SUMMARY:Check who\\\'s due to reach out',
-      'DESCRIPTION:Open Keeping in Touch and see who\\\'s due today.',
-      'BEGIN:VALARM',
-      'TRIGGER:PT0M',
-      'ACTION:DISPLAY',
-      'DESCRIPTION:Check who\\\'s due to reach out',
-      'END:VALARM',
-      'END:VEVENT',
-      'END:VCALENDAR'
-    ].join('\r\n');
+      'CALSCALE:GREGORIAN'
+    ];
+
+    dayKeys.forEach((days, i) => {
+      const names = groups[days];
+      const rule = cadenceRule(days);
+
+      const now = new Date();
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm, 0);
+      if (start < now) start.setDate(start.getDate() + 1);
+
+      const summary = rule.label + ' check-ins (' + names.length + ')';
+      const desc = 'Reach out to: ' + names.join(', ');
+
+      lines.push(
+        'BEGIN:VEVENT',
+        'UID:keeping-in-touch-' + days + 'd-' + Date.now() + '-' + i + '@local',
+        'DTSTAMP:' + dtStamp,
+        'DTSTART:' + icsTimestamp(start),
+        'DURATION:PT10M',
+        'RRULE:' + rule.rrule,
+        'SUMMARY:' + icsEscape(summary),
+        'DESCRIPTION:' + icsEscape(desc),
+        'BEGIN:VALARM',
+        'TRIGGER:PT0M',
+        'ACTION:DISPLAY',
+        'DESCRIPTION:' + icsEscape(summary),
+        'END:VALARM',
+        'END:VEVENT'
+      );
+    });
+
+    lines.push('END:VCALENDAR');
+
+    const ics = lines.map(foldIcsLine).join('\r\n');
 
     const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'keeping-in-touch-reminder.ics';
+    a.download = 'keeping-in-touch-reminders.ics';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -1639,9 +1697,9 @@
       <div class="sheet-overlay" onclick="if(event.target===this) window.__appActions.closeSettings()">
         <div class="sheet">
           <div class="sheet-handle"></div>
-          <div class="sheet-title">Daily reminder</div>
+          <div class="sheet-title">Reminders</div>
           <div style="font-size:13px; color:var(--text-secondary); line-height:1.6;">
-            One reminder fires per day at the time below — not one per contact — so you're nudged to check the app instead of getting bombarded when several people are due the same day.
+            Reminders fire at the time below, grouped by cadence — one recurring event per tier (weekly, biweekly, monthly, bimonthly, annual). Each event lists the people in that group, so a weekly reminder recurs weekly, a monthly one monthly, and so on.
           </div>
 
           <div class="field-label">Reminder time</div>
@@ -1649,9 +1707,9 @@
 
           <div class="field-label">Add to your calendar</div>
           <div style="font-size:13px; color:var(--text-secondary); margin-bottom:14px; line-height:1.6;">
-            Downloads a .ics file with a daily recurring reminder at ${escapeHtml(reminderTime)}. Open it on your iPhone or Mac to add it to Apple Calendar — it'll sync to both automatically via iCloud. Google Calendar can import it too.
+            Downloads a .ics file with one recurring event per cadence at ${escapeHtml(reminderTime)}. Open it on your iPhone or Mac to add it to Apple Calendar — it'll sync to both automatically via iCloud. Google Calendar can import it too. Contacts with no reminder cadence are left out.
           </div>
-          <button class="btn-primary" style="width:100%;" onclick="window.__appActions.downloadIcs()">Download calendar reminder (.ics)</button>
+          <button class="btn-primary" style="width:100%;" onclick="window.__appActions.downloadIcs()">Download cadence reminders (.ics)</button>
 
           <div class="sheet-actions">
             <button class="btn-secondary" style="width:100%;" onclick="window.__appActions.closeSettings()">Done</button>
