@@ -285,6 +285,39 @@
   #app-root .empty-state .big { font-size: 15px; color: var(--text-secondary); margin-bottom: 6px; }
   #app-root .empty-state .small { font-size: 13px; }
 
+  #app-root .resume-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 14px 18px 0;
+    padding: 12px 14px;
+    background: var(--accent-amber-dim);
+    border: 1px solid var(--accent-amber);
+    border-radius: 12px;
+    cursor: pointer;
+  }
+  #app-root .resume-banner .resume-icon { font-size: 18px; color: var(--accent-amber); flex-shrink: 0; }
+  #app-root .resume-banner .resume-text { flex: 1; min-width: 0; }
+  #app-root .resume-banner .resume-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+  #app-root .resume-banner .resume-sub {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--accent-amber);
+    margin-top: 2px;
+  }
+  #app-root .resume-banner .resume-go {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    color: #171B24;
+    background: var(--accent-amber);
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
   #app-root .fab {
     position: fixed;
     bottom: 24px;
@@ -1302,6 +1335,14 @@
     render();
   }
 
+  // Resume an import review left unfinished via "Finish later". The remaining
+  // people are still in pendingQueue (persisted), so this just reopens the feed.
+  function resumeTriage() {
+    if (pendingQueue.length === 0) return;
+    viewMode = 'triage';
+    render();
+  }
+
   // ---- Skipped contacts ----
 
   function openSkipped() {
@@ -1353,7 +1394,7 @@
 
   window.__appActions = {
     logContact, openAddSheet, openEditSheet, closeSheet, saveDraft, deleteContact, setDraftField,
-    openImport, closeImport, handleFileImport, triageSetField, triageAdd, triageSkip, triageBack, triageFinishLater, triageDoneReturn,
+    openImport, closeImport, handleFileImport, triageSetField, triageAdd, triageSkip, triageBack, triageFinishLater, resumeTriage, triageDoneReturn,
     openSkipped, closeSkipped, skippedReAdd, skippedReAddAll, skippedRemove,
     openSettings, closeSettings, saveReminderTime, downloadIcs
   };
@@ -1536,6 +1577,15 @@
         </div>
         <div class="chips">${cadenceChipsHtml}</div>
       </div>
+      ${pendingQueue.length > 0 ? `
+      <div class="resume-banner" onclick="window.__appActions.resumeTriage()">
+        <span class="resume-icon">⇉</span>
+        <div class="resume-text">
+          <div class="resume-title">Finish reviewing imported contacts</div>
+          <div class="resume-sub">${pendingQueue.length} left to sort</div>
+        </div>
+        <button class="resume-go" onclick="event.stopPropagation(); window.__appActions.resumeTriage()">Resume ›</button>
+      </div>` : ''}
       ${contacts.length > 0 ? `
       <div class="sort-bar">
         <span class="sort-bar-label">Sort by</span>
