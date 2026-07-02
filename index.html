@@ -1342,6 +1342,18 @@
   }
 
   function render() {
+    // The whole view is rebuilt on every state change, which would drop the
+    // search field's focus/caret and reset the platform chips' scroll offset.
+    // Capture them first so they can be restored after innerHTML is replaced.
+    const activeEl = document.activeElement;
+    const searchWasFocused = !!(activeEl && activeEl.classList && activeEl.classList.contains('search-input'));
+    let caret = null;
+    if (searchWasFocused) {
+      try { caret = activeEl.selectionStart; } catch (e) { caret = null; }
+    }
+    const prevChips = root.querySelector('.chips');
+    const chipsScroll = prevChips ? prevChips.scrollLeft : 0;
+
     if (!loaded) {
       root.innerHTML = `<div class="loading-msg">Opening the rolodex…</div>`;
       return;
@@ -1363,8 +1375,11 @@
       return;
     }
 
+    const query = searchQuery.trim().toLowerCase();
     let filtered = contacts.filter(c => {
-      if (searchQuery && !c.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+      // An active search looks across everyone, ignoring the DUE/platform chip
+      // so results aren't hidden by whichever filter happens to be selected.
+      if (query) return c.name.toLowerCase().includes(query);
       if (activeFilter === 'due') return getStatus(c) === 'overdue' || getStatus(c) === 'due';
       if (activeFilter === 'all') return true;
       return c.platform === activeFilter;
@@ -1436,6 +1451,20 @@
       ${sheetOpen ? renderSheet() : ''}
       ${settingsOpen ? renderSettingsSheet() : ''}
     `;
+
+    // Restore the chips scroll offset and, if the user was typing, put focus and
+    // the caret back so search stays smooth across the re-render.
+    const chips = root.querySelector('.chips');
+    if (chips) chips.scrollLeft = chipsScroll;
+    if (searchWasFocused) {
+      const input = root.querySelector('.search-input');
+      if (input) {
+        input.focus();
+        if (caret != null) {
+          try { input.setSelectionRange(caret, caret); } catch (e) { /* ignore */ }
+        }
+      }
+    }
   }
 
   function toggleGuide(key) {
