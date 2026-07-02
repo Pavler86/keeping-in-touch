@@ -809,6 +809,7 @@
       steps: [
         'iMessage uses your phone contacts directly — no separate export exists.',
         'iPhone: Contacts app → select contacts (or Select All) → Share → Export vCard',
+        'Any contact photos saved on your phone are embedded in the vCard, so each person shows up with their picture during review.',
         'Upload the resulting .vcf file below.'
       ]
     },
@@ -817,8 +818,9 @@
       steps: [
         'Go to Accounts Center → Your information and permissions → Download your information.',
         'Choose your Facebook account, select "Some of your information," and pick Friends and Followers.',
-        'Choose JSON format. Takes minutes to a couple days depending on account size.',
-        'Upload the friends.json (or similar) file from the ZIP below.'
+        'Choose HTML format if you\'d like a tappable profile link per friend during review; JSON works too but gives names only. Takes minutes to a couple days depending on account size.',
+        'Upload the friends file (.html or .json) from the ZIP below.',
+        'Facebook can\'t export the actual photo files, but the HTML profile link lets you open each person to see their picture.'
       ]
     },
     messenger: {
@@ -827,6 +829,7 @@
         'Messenger contacts run through the same Meta Accounts Center as Facebook.',
         'Accounts Center → Your information and permissions → Download your information → choose your account.',
         'Select Contacts or Friends category, JSON format.',
+        'This export is names only — no profile photos or links come through, so you\'ll match people by name during review.',
         'Upload the resulting JSON file below.'
       ]
     },
@@ -834,9 +837,9 @@
       title: 'Instagram',
       steps: [
         'Accounts Center → Your information and permissions → Download your information.',
-        'Either JSON or HTML format works here — pick whichever you already have.',
+        'Choose HTML if you can — it includes a profile link for each person, so you can tap "Open profile" during review to see their picture. JSON works too but gives usernames only.',
         'Inside the ZIP, open connections/followers_and_following/ and grab followers_1 or following (the .json or .html file).',
-        'Upload that file below. Note: you\'ll get usernames, not real names.'
+        'Upload that file below. Note: you\'ll get usernames, not real names, and Instagram can\'t export the actual photo files — the profile link is how you see the picture.'
       ]
     },
     whatsapp: {
@@ -844,6 +847,7 @@
       steps: [
         'WhatsApp has no separate contacts export — it uses your phone contacts directly.',
         'Use the same vCard export as iMessage (iPhone Contacts app → Export vCard).',
+        'Contact photos in your phone are embedded in the vCard and appear next to each person during review.',
         'Upload that .vcf file below.'
       ]
     },
@@ -853,6 +857,7 @@
         'Requires Telegram Desktop (not the phone app).',
         'Settings → Advanced → Export Telegram Data.',
         'Uncheck everything except "Contacts," choose JSON format, then export.',
+        'This export is names only — no profile photos or links come through, so you\'ll match people by name during review.',
         'Upload the result.json file below.'
       ]
     },
@@ -862,6 +867,7 @@
         'Settings & Privacy → Data privacy → Get a copy of your data.',
         'Select "Connections" and request the archive.',
         'You\'ll get an email with a Connections.csv file once it\'s ready.',
+        'The CSV includes each connection\'s profile URL, so you can tap "Open profile" during review. Photos aren\'t part of the export.',
         'Upload that CSV below.'
       ]
     },
@@ -871,6 +877,7 @@
         'User Settings → Data & Privacy → Request Data.',
         'This includes your friends list. Can take up to 30 days for large accounts — request it and check back later.',
         'You\'ll get a ZIP by email; open it and find the file containing your relationships/friends.',
+        'This export is names only — no profile photos or links come through, so you\'ll match people by name during review.',
         'Upload that JSON file below.'
       ]
     }
@@ -1915,7 +1922,7 @@
         </div>
         <div class="import-help" style="padding-bottom: 10px;">
           <div class="big">Bring in your real contacts</div>
-          <div class="small">Tap a platform below for export steps, then upload the file you get. Supports .vcf, .csv, .txt, .json, and .html. Names go into a quick swipe feed — assign platform + cadence per person, or skip anyone you don't want tracked.</div>
+          <div class="small">Tap a platform below for export steps, then upload the file you get. Supports .vcf, .csv, .txt, .json, and .html. Names go into a quick swipe feed — assign platform + cadence per person, or skip anyone you don't want tracked. Where the export includes it, you'll also see each person's profile photo (from phone-contact vCards) or a tap-to-open profile link (Instagram, Facebook, LinkedIn) so you can recognize who's who without leaving the app.</div>
         </div>
         <div class="guide-list">${guideItems}</div>
         <div style="text-align:center; padding-bottom: 40px;">
