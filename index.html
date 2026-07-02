@@ -80,23 +80,31 @@
     font-family: 'Inter', sans-serif;
   }
 
-  #app-root .header-count-row {
+  #app-root .sort-bar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+    gap: 10px;
+    padding: 14px 18px 0;
+  }
+
+  #app-root .sort-bar-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
   }
 
   #app-root .sort-select {
-    flex-shrink: 0;
+    flex: 1;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 8px;
-    color: var(--text-secondary);
+    color: var(--text-primary);
     font-family: 'Space Mono', monospace;
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 0.03em;
-    padding: 7px 10px;
+    padding: 9px 12px;
     cursor: pointer;
   }
   #app-root .sort-select:focus { outline: none; border-color: var(--accent-amber); }
@@ -924,6 +932,13 @@
     return 'ok';
   }
 
+  // Days until next contact is due (negative when overdue). Contacts with no
+  // cadence have no due date, so they sort to the very end.
+  function daysLeft(c) {
+    if (!c.cadenceDays) return Infinity;
+    return c.cadenceDays - daysSince(c.lastContacted);
+  }
+
   function logContact(id) {
     const c = contacts.find(x => x.id === id);
     if (c) {
@@ -1357,16 +1372,12 @@
 
     if (sortMode === 'name') {
       filtered.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
-    } else if (sortMode === 'recent') {
-      filtered.sort((a, b) => daysSince(b.lastContacted) - daysSince(a.lastContacted));
     } else {
-      // urgency: overdue → due → ok → none, then longest since last contact
+      // urgency: fewest days left until due first (overdue is negative → top)
       filtered.sort((a, b) => {
-        const rank = { overdue: 0, due: 1, ok: 2, none: 3 };
-        const sa = getStatus(a), sb = getStatus(b);
-        if (rank[sa] !== rank[sb]) return rank[sa] - rank[sb];
-        const da = daysSince(a.lastContacted), db = daysSince(b.lastContacted);
-        return db - da;
+        const la = daysLeft(a), lb = daysLeft(b);
+        if (la === lb) return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+        return la - lb;
       });
     }
 
@@ -1392,14 +1403,7 @@
     root.innerHTML = `
       <div class="header">
         <div class="header-title">Keeping in touch</div>
-        <div class="header-count-row">
-          <div class="header-count">${dueCount} <span class="sub">due to reach out to</span></div>
-          <select class="sort-select" aria-label="Sort contacts" onchange="window.__setSort(this.value)">
-            <option value="urgency" ${sortMode === 'urgency' ? 'selected' : ''}>↓ Urgency</option>
-            <option value="name" ${sortMode === 'name' ? 'selected' : ''}>↓ Name A–Z</option>
-            <option value="recent" ${sortMode === 'recent' ? 'selected' : ''}>↓ Oldest contact</option>
-          </select>
-        </div>
+        <div class="header-count">${dueCount} <span class="sub">due to reach out to</span></div>
         <div class="search-row">
           <input class="search-input" type="text" placeholder="Search contacts…" value="${escapeHtml(searchQuery)}" oninput="window.__searchInput(this.value)" />
           <div class="import-btn" onclick="window.__appActions.openImport()" aria-label="Import contacts">⇪</div>
@@ -1419,6 +1423,14 @@
           <div class="chip ${activeFilter === 'discord' ? 'active' : ''}" onclick="window.__setFilter('discord')">DISCORD</div>
         </div>
       </div>
+      ${contacts.length > 0 ? `
+      <div class="sort-bar">
+        <span class="sort-bar-label">Sort by</span>
+        <select class="sort-select" aria-label="Sort contacts" onchange="window.__setSort(this.value)">
+          <option value="urgency" ${sortMode === 'urgency' ? 'selected' : ''}>Urgency (soonest due)</option>
+          <option value="name" ${sortMode === 'name' ? 'selected' : ''}>Name A–Z</option>
+        </select>
+      </div>` : ''}
       <div class="list">${listHtml}</div>
       <button class="fab" onclick="window.__appActions.openAddSheet()" aria-label="Add contact">+</button>
       ${sheetOpen ? renderSheet() : ''}
