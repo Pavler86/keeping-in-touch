@@ -1503,7 +1503,7 @@
     logContact, openAddSheet, openEditSheet, closeSheet, saveDraft, deleteContact, setDraftField,
     openImport, closeImport, handleFileImport, triageSetField, triageAdd, triageSkip, triageBack, triageFinishLater, resumeTriage, triageDoneReturn,
     openSkipped, closeSkipped, skippedReAdd, skippedReAddAll, skippedRemove,
-    openSettings, closeSettings, saveReminderTime, downloadIcs
+    openSettings, closeSettings, saveReminderTime, downloadIcs, downloadBackup, handleBackupImport
   };
 
   function escapeHtml(s) {
@@ -1893,6 +1893,72 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
+  // Every localStorage key the app owns — the full set a backup captures and a
+  // restore rewrites, so moving to a new device carries everything across.
+  const BACKUP_KEYS = [
+    'contacts-data', 'pending-queue', 'triage-history', 'skipped-contacts',
+    'triage-draft', 'reminder-time', 'sort-mode', 'ics-sequence'
+  ];
+
+  function downloadBackup() {
+    const data = {};
+    BACKUP_KEYS.forEach(k => {
+      const v = localStorage.getItem(k);
+      if (v !== null) data[k] = v;
+    });
+    const payload = {
+      app: 'keeping-in-touch',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      contactCount: contacts.length,
+      data: data
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'keeping-in-touch-backup.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function handleBackupImport(fileInput) {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      let payload;
+      try {
+        payload = JSON.parse(e.target.result);
+      } catch (err) {
+        alert('That file could not be read as a backup (invalid JSON).');
+        return;
+      }
+      const data = payload && payload.data;
+      if (!data || typeof data !== 'object' || typeof data['contacts-data'] !== 'string') {
+        alert('That does not look like a Keeping in Touch backup file.');
+        return;
+      }
+      let incoming = 0;
+      try { incoming = (JSON.parse(data['contacts-data']) || []).length; } catch (err) { incoming = 0; }
+      const ok = confirm('Restore ' + incoming + ' contact' + (incoming === 1 ? '' : 's') +
+        ' from this backup?\n\nThis replaces everything currently stored in the app on this device.');
+      if (!ok) { fileInput.value = ''; return; }
+      // Rewrite only the keys the backup actually carries; leave any others as-is.
+      BACKUP_KEYS.forEach(k => {
+        if (typeof data[k] === 'string') {
+          try { localStorage.setItem(k, data[k]); } catch (err) { console.error('restore failed for', k, err); }
+        }
+      });
+      // Full reload so every in-memory piece of state is rebuilt from the
+      // restored storage — no risk of stale arrays lingering from before.
+      location.reload();
+    };
+    reader.readAsText(file);
+  }
+
   function renderImportHelp() {
     const guideItems = Object.keys(PLATFORM_GUIDES).map(key => {
       const g = PLATFORM_GUIDES[key];
@@ -2129,6 +2195,16 @@
             Downloads a .ics file with one recurring event per cadence at ${escapeHtml(reminderTime)}. Open it on your iPhone or Mac to add it to Apple Calendar — it'll sync to both automatically via iCloud. Google Calendar can import it too. Contacts with no reminder cadence are left out.
           </div>
           <button class="btn-primary" style="width:100%;" onclick="window.__appActions.downloadIcs()">Download cadence reminders (.ics)</button>
+
+          <div class="field-label">Backup &amp; move to another device</div>
+          <div style="font-size:13px; color:var(--text-secondary); margin-bottom:14px; line-height:1.6;">
+            Export a file with all your contacts and settings. To move to another device (e.g. Mac → iPhone): export here, AirDrop or email the file over, open this app there, then Import. Keep a copy as a backup too — Safari can clear the app's data after about a week of not opening it.
+          </div>
+          <button class="btn-primary" style="width:100%; margin-bottom:10px;" onclick="window.__appActions.downloadBackup()">Export backup (.json)</button>
+          <label class="btn-secondary" style="width:100%; display:block; text-align:center; box-sizing:border-box; cursor:pointer;">
+            Import / restore backup
+            <input type="file" accept=".json,application/json" style="display:none" onchange="window.__appActions.handleBackupImport(this)" />
+          </label>
 
           <div class="sheet-actions">
             <button class="btn-secondary" style="width:100%;" onclick="window.__appActions.closeSettings()">Done</button>
